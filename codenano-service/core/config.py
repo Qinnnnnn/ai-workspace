@@ -2,7 +2,8 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()
+# Load .env from the same directory as this config file
+load_dotenv(Path(__file__).parent / ".env")
 
 
 def _get_required(key: str) -> str:
