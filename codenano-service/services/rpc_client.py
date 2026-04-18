@@ -29,7 +29,7 @@ class JsonRpcClient:
         if params:
             request["params"] = params
 
-        self._process.stdin.write(json.dumps(request) + "\n")
+        self._process.stdin.write(json.dumps(request).encode() + b"\n")
         await self._process.stdin.drain()
 
         return await future
