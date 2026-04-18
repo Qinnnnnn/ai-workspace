@@ -16,9 +16,10 @@ def create_registry() -> SubprocessRegistry:
 
 
 @router.post("")
-async def create_session():
+async def create_session(body: dict | None = None):
     reg = create_registry()
-    session_id = await reg.create_session()
+    config = body or {}
+    session_id = await reg.create_session(config)
     return {"sessionId": session_id}
 
 
@@ -77,6 +78,21 @@ async def send_message(session_id: str, body: dict):
     stream = body.get("stream", True)
     reg.touch(session_id)
 
+    # Build send params - pass through all codenano-compatible params
+    send_params = {
+        "sessionId": session_id,
+        "prompt": prompt,
+        # Per-message overrides (currently CLI may not use all of these)
+        "model": body.get("model"),
+        "systemPrompt": body.get("systemPrompt"),
+        "overrideSystemPrompt": body.get("overrideSystemPrompt"),
+        "appendSystemPrompt": body.get("appendSystemPrompt"),
+        "maxOutputTokens": body.get("maxOutputTokens"),
+        "thinkingConfig": body.get("thinkingConfig"),
+    }
+    # Remove None values
+    send_params = {k: v for k, v in send_params.items() if v is not None}
+
     event_queue: asyncio.Queue[dict] = asyncio.Queue()
     events: list[dict] = []
 
@@ -86,7 +102,7 @@ async def send_message(session_id: str, body: dict):
     client.add_notification_handler(notification_handler)
 
     async def event_generator():
-        task = asyncio.create_task(client.call("send", {"sessionId": session_id, "prompt": prompt}))
+        task = asyncio.create_task(client.call("send", send_params))
 
         try:
             while True:

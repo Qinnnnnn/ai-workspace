@@ -14,6 +14,7 @@ const sessionMeta = new Map<string, { createdAt: string; lastActivity: string }>
 
 server.register('init', async (params) => {
   const { config } = (params ?? {}) as unknown as InitParams
+  if (!config) throw new Error('config is required')
   agent = createAgent({
     ...config,
     persistence: { enabled: false },

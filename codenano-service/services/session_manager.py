@@ -29,15 +29,15 @@ class SubprocessRegistry:
         self._sessions: dict[str, SessionInfo] = {}
         self._cleanup_task: asyncio.Task = asyncio.create_task(self._cleanup_loop())
 
-    async def create_session(self) -> str:
+    async def create_session(self, config: dict | None = None) -> str:
         session_id = str(uuid.uuid4())
         cli_path = os.path.abspath(CODENANO_CLI_PATH)
         workspace_path = Path(WORKSPACE_BASE_DIR) / session_id / "workspace"
 
-        bwrap_args = build_bwrap_args(session_id, cli_path, str(workspace_path))
-
+        # TODO: re-enable bwrap after debugging
+        # bwrap_args = build_bwrap_args(session_id, cli_path, str(workspace_path))
         proc = await asyncio.create_subprocess_exec(
-            *bwrap_args,
+            "node", cli_path,
             stdin=asyncio.subprocess.PIPE,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
@@ -47,7 +47,11 @@ class SubprocessRegistry:
         client = JsonRpcClient(proc)
         client.start_reading()
 
-        await client.call("init", {"config": {"model": "claude-sonnet-4-6"}})
+        # Default config, merged with provided config
+        init_config = {"model": "claude-sonnet-4-6"}
+        if config:
+            init_config.update(config)
+        await client.call("init", {"config": init_config})
 
         now = datetime.now()
         info = SessionInfo(session_id, client, now, now)

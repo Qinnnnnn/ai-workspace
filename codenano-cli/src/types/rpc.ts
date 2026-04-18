@@ -27,6 +27,13 @@ export interface InitParams {
 export interface SendParams {
   sessionId: string
   prompt: string
+  // Per-message overrides (merged with agent config)
+  model?: string
+  systemPrompt?: string
+  overrideSystemPrompt?: string
+  appendSystemPrompt?: string
+  maxOutputTokens?: number
+  thinkingConfig?: 'adaptive' | 'disabled'
 }
 
 export interface CloseParams {
