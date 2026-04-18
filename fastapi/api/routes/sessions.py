@@ -4,7 +4,7 @@ import logging
 from fastapi import APIRouter, HTTPException, Response
 from sse_starlette.sse import EventSourceResponse
 
-from session_manager import SubprocessRegistry
+from services.session_manager import SubprocessRegistry
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/sessions", tags=["sessions"])

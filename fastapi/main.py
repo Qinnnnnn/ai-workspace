@@ -2,9 +2,9 @@ import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
-from config import LOG_LEVEL
-from sandbox import check_bwrap
-from session_manager import SubprocessRegistry
+from core.config import LOG_LEVEL
+from services.sandbox import check_bwrap
+from services.session_manager import SubprocessRegistry
 
 logging.basicConfig(level=LOG_LEVEL, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -29,5 +29,5 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="codenano-agent-service", lifespan=lifespan)
 
-from routes import sessions  # noqa: E402, F401
-from routes import files  # noqa: E402, F401
+from api.routes import sessions  # noqa: E402, F401
+from api.routes import files  # noqa: E402, F401

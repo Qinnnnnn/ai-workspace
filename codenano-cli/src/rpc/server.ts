@@ -1,4 +1,4 @@
-import type { JsonRpcRequest, JsonRpcResponse, JsonRpcNotification } from './rpc-types.js'
+import type { JsonRpcRequest, JsonRpcResponse, JsonRpcNotification } from '../types/rpc.js'
 
 type MethodHandler = (params?: Record<string, unknown>) => Promise<unknown> | never
 

@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
 import { createAgent, type Agent, type Session, type StreamEvent, listSessions } from 'codenano'
-import { RpcServer } from './rpc-server.js'
-import type { InitParams, SendParams, CloseParams, HistoryParams, SessionInfo, ReadFileParams, ListFilesParams, FileInfo } from './rpc-types.js'
+import { RpcServer } from './rpc/server.js'
+import type { InitParams, SendParams, CloseParams, HistoryParams, SessionInfo, ReadFileParams, ListFilesParams, FileInfo } from './types/rpc.js'
 import fs from 'fs/promises'
 import path from 'path'
 

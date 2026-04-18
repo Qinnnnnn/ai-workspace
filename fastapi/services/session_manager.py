@@ -5,9 +5,9 @@ import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from rpc_client import JsonRpcClient
-from sandbox import build_bwrap_args
-from config import CODENANO_CLI_PATH, SB_TTL_MINUTES, ANTHROPIC_API_KEY, WORKSPACE_BASE_DIR
+from services.rpc_client import JsonRpcClient
+from services.sandbox import build_bwrap_args
+from core.config import CODENANO_CLI_PATH, SB_TTL_MINUTES, ANTHROPIC_API_KEY, WORKSPACE_BASE_DIR
 
 logger = logging.getLogger(__name__)
 
