@@ -2,8 +2,8 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 
-# Load .env from the same directory as this config file
-load_dotenv(Path(__file__).parent / ".env")
+# Load .env from the service root directory
+load_dotenv(Path(__file__).parent.parent / ".env")
 
 
 def _get_required(key: str) -> str:
