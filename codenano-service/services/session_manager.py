@@ -44,24 +44,6 @@ class SubprocessRegistry:
             env={**os.environ, "ANTHROPIC_API_KEY": ANTHROPIC_API_KEY, **({"ANTHROPIC_BASE_URL": ANTHROPIC_BASE_URL} if ANTHROPIC_BASE_URL else {})},
         )
 
-        # Log stderr in background
-        async def log_stderr():
-            stderr = proc.stderr
-            if stderr:
-                try:
-                    while True:
-                        try:
-                            line = await asyncio.wait_for(stderr.readline(), timeout=1)
-                            if not line:
-                                break
-                            logger.error(f"[subprocess stderr] {line.decode().strip()}")
-                        except asyncio.TimeoutError:
-                            continue
-                except Exception:
-                    pass
-
-        asyncio.create_task(log_stderr())
-
         client = JsonRpcClient(proc)
         client.start_reading()
 
