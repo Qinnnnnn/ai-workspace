@@ -74,9 +74,11 @@ async def send_message(session_id: str, body: dict):
     if not prompt:
         raise HTTPException(status_code=400, detail="Missing 'prompt' field")
 
+    stream = body.get("stream", True)
     reg.touch(session_id)
 
     event_queue: asyncio.Queue[dict] = asyncio.Queue()
+    events: list[dict] = []
 
     def notification_handler(notification: dict) -> None:
         event_queue.put_nowait(notification)
@@ -93,6 +95,7 @@ async def send_message(session_id: str, body: dict):
                     params = notification.get("params", {})
                     ev_type = params.get("type", "unknown")
                     data = params.get("data", {})
+                    events.append({"type": ev_type, "data": data})
                     yield {"event": ev_type, "data": json.dumps(data)}
                     if ev_type == "result":
                         break
@@ -103,5 +106,12 @@ async def send_message(session_id: str, body: dict):
                 await task
             except Exception as e:
                 yield {"event": "error", "data": json.dumps({"error": str(e)})}
+
+    if not stream:
+        # Non-streaming: collect all events and return JSON
+        collected = []
+        async for event in event_generator():
+            collected.append(event)
+        return {"events": collected}
 
     return EventSourceResponse(event_generator())
