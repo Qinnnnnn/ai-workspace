@@ -19,6 +19,8 @@ bwrap --version
 
 ```bash
 ANTHROPIC_API_KEY=your-api-key-here
+# 可选：自定义 API 端点（如代理服务器）
+# ANTHROPIC_BASE_URL=https://api.anthropic.com
 CODENANO_CLI_PATH=../codenano-cli/dist/index.js
 SB_TTL_MINUTES=30
 LOG_LEVEL=INFO
@@ -28,6 +30,7 @@ WORKSPACE_BASE_DIR=/tmp/host_sessions
 | 变量 | 必填 | 默认值 | 说明 |
 |------|------|--------|------|
 | `ANTHROPIC_API_KEY` | 是 | - | Anthropic API 密钥 |
+| `ANTHROPIC_BASE_URL` | 否 | - | 自定义 API 端点（如代理服务器） |
 | `CODENANO_CLI_PATH` | 否 | `../codenano-cli/dist/index.js` | codenano CLI 路径 |
 | `SB_TTL_MINUTES` | 否 | `30` | Session 存活时间（分钟） |
 | `LOG_LEVEL` | 否 | `INFO` | 日志级别 |

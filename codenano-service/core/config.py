@@ -13,6 +13,7 @@ def _get_required(key: str) -> str:
 
 
 ANTHROPIC_API_KEY = _get_required("ANTHROPIC_API_KEY")
+ANTHROPIC_BASE_URL = os.environ.get("ANTHROPIC_BASE_URL")
 CODENANO_CLI_PATH = os.environ.get("CODENANO_CLI_PATH", "../codenano-cli/dist/index.js")
 SB_TTL_MINUTES = int(os.environ.get("SB_TTL_MINUTES", "30"))
 LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO")
