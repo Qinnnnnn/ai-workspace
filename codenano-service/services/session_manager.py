@@ -48,15 +48,17 @@ class SubprocessRegistry:
         async def log_stderr():
             stderr = proc.stderr
             if stderr:
-                while not proc.stderr.is_closing():
-                    try:
-                        line = await asyncio.wait_for(stderr.readline(), timeout=1)
-                        if line:
+                try:
+                    while True:
+                        try:
+                            line = await asyncio.wait_for(stderr.readline(), timeout=1)
+                            if not line:
+                                break
                             logger.error(f"[subprocess stderr] {line.decode().strip()}")
-                    except asyncio.TimeoutError:
-                        continue
-                    except Exception:
-                        break
+                        except asyncio.TimeoutError:
+                            continue
+                except Exception:
+                    pass
 
         asyncio.create_task(log_stderr())
 
