@@ -40,8 +40,7 @@ WORKSPACE_BASE_DIR=/tmp/host_sessions
 
 ```bash
 cd codenano-service
-source .venv/bin/activate
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
+uv run uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 服务启动后会：
@@ -65,23 +64,28 @@ open http://localhost:8000/docs
 
 ```bash
 # 创建 session
-curl -X POST http://localhost:8000/sessions
+curl -X POST http://localhost:8000/api/v1/sessions
 
 # 列出 session
-curl http://localhost:8000/sessions
+curl http://localhost:8000/api/v1/sessions
 
 # 查看特定 session
-curl http://localhost:8000/sessions/{session_id}
+curl http://localhost:8000/api/v1/sessions/{session_id}
+
+# 发送消息
+curl -X POST http://localhost:8000/api/v1/sessions/{session_id}/message \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "hello"}'
 ```
 
 ## 开发调试
 
 ```bash
 # 开启 debug 日志
-LOG_LEVEL=DEBUG uvicorn main:app --reload
+LOG_LEVEL=DEBUG uv run uvicorn main:app --reload
 
 # 查看详细错误
-uvicorn main:app --reload --log-level debug
+uv run uvicorn main:app --reload --log-level debug
 ```
 
 ## 常见问题

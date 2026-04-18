@@ -31,3 +31,6 @@ app = FastAPI(title="codenano-agent-service", lifespan=lifespan)
 
 from api.routes import sessions  # noqa: E402, F401
 from api.routes import files  # noqa: E402, F401
+
+app.include_router(sessions.router)
+app.include_router(files.router)
