@@ -2,7 +2,9 @@
 
 import { createAgent, type Agent, type Session, type StreamEvent, listSessions } from 'codenano'
 import { RpcServer } from './rpc-server.js'
-import type { InitParams, SendParams, CloseParams, HistoryParams, SessionInfo } from './rpc-types.js'
+import type { InitParams, SendParams, CloseParams, HistoryParams, SessionInfo, ReadFileParams, ListFilesParams, FileInfo } from './rpc-types.js'
+import fs from 'fs/promises'
+import path from 'path'
 
 const server = new RpcServer()
 
@@ -71,6 +73,57 @@ server.register('list_sessions', async () => {
     })
   }
   return { sessions: result }
+})
+
+server.register('read_file', async (params) => {
+  const { sessionId, path: filePath } = (params ?? {}) as unknown as ReadFileParams
+  if (!sessionId) throw new Error('sessionId is required')
+  if (!filePath) throw new Error('path is required')
+
+  const resolvedPath = path.resolve('/workspace', filePath)
+  if (!resolvedPath.startsWith('/workspace')) {
+    throw new Error('Path traversal detected')
+  }
+
+  const content = await fs.readFile(resolvedPath, 'utf-8')
+  return { content, path: filePath }
+})
+
+server.register('list_files', async (params) => {
+  const { sessionId, path: dirPath } = (params ?? {}) as unknown as ListFilesParams
+  if (!sessionId) throw new Error('sessionId is required')
+
+  const targetPath = dirPath ? path.resolve('/workspace', dirPath) : '/workspace'
+  if (!targetPath.startsWith('/workspace')) {
+    throw new Error('Path traversal detected')
+  }
+
+  const entries = await fs.readdir(targetPath, { withFileTypes: true })
+  const files: FileInfo[] = []
+
+  for (const entry of entries) {
+    const fullPath = path.join(targetPath, entry.name)
+    try {
+      const stat = await fs.stat(fullPath)
+      files.push({
+        name: entry.name,
+        path: path.relative('/workspace', fullPath),
+        isDirectory: entry.isDirectory(),
+        size: stat.size,
+        modified: stat.mtime.toISOString(),
+      })
+    } catch {
+      files.push({
+        name: entry.name,
+        path: path.relative('/workspace', fullPath),
+        isDirectory: entry.isDirectory(),
+        size: 0,
+        modified: new Date().toISOString(),
+      })
+    }
+  }
+
+  return { files, path: dirPath ?? '' }
 })
 
 async function main(): Promise<void> {

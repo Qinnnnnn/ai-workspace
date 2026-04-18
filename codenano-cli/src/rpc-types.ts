@@ -47,3 +47,31 @@ export type SessionInfo = {
   createdAt: string
   lastActivity: string
 }
+
+export interface ReadFileParams {
+  sessionId: string
+  path: string
+}
+
+export interface ListFilesParams {
+  sessionId: string
+  path?: string
+}
+
+export interface FileInfo {
+  name: string
+  path: string
+  isDirectory: boolean
+  size: number
+  modified: string
+}
+
+export interface ReadFileResult {
+  content: string
+  path: string
+}
+
+export interface ListFilesResult {
+  files: FileInfo[]
+  path: string
+}

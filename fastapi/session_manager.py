@@ -7,7 +7,7 @@ from pathlib import Path
 
 from rpc_client import JsonRpcClient
 from sandbox import build_bwrap_args
-from config import CODENANO_CLI_PATH, SB_TTL_MINUTES, ANTHROPIC_API_KEY
+from config import CODENANO_CLI_PATH, SB_TTL_MINUTES, ANTHROPIC_API_KEY, WORKSPACE_BASE_DIR
 
 logger = logging.getLogger(__name__)
 
@@ -32,8 +32,9 @@ class SubprocessRegistry:
     async def create_session(self) -> str:
         session_id = str(uuid.uuid4())
         cli_path = os.path.abspath(CODENANO_CLI_PATH)
+        workspace_path = Path(WORKSPACE_BASE_DIR) / session_id / "workspace"
 
-        bwrap_args = build_bwrap_args(session_id, cli_path)
+        bwrap_args = build_bwrap_args(session_id, cli_path, str(workspace_path))
 
         proc = await asyncio.create_subprocess_exec(
             *bwrap_args,

@@ -30,3 +30,4 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="codenano-agent-service", lifespan=lifespan)
 
 from routes import sessions  # noqa: E402, F401
+from routes import files  # noqa: E402, F401

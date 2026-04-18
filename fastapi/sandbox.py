@@ -1,6 +1,4 @@
-import os
 import shutil
-import subprocess
 from pathlib import Path
 
 
@@ -11,9 +9,9 @@ def get_bwrap_path() -> str:
     return path
 
 
-def build_bwrap_args(session_id: str, cli_path: str) -> list[str]:
-    sandbox_dir = Path(f"/tmp/sandbox/{session_id}")
-    sandbox_dir.mkdir(parents=True, exist_ok=True)
+def build_bwrap_args(session_id: str, cli_path: str, workspace_path: str) -> list[str]:
+    workspace_path = str(Path(workspace_path).resolve())
+    Path(workspace_path).mkdir(parents=True, exist_ok=True)
 
     bwrap_path = get_bwrap_path()
 
@@ -22,16 +20,14 @@ def build_bwrap_args(session_id: str, cli_path: str) -> list[str]:
         "--unshare-user",
         "--unshare-pid",
         "--unshare-uts",
-        "--ro-bind", "/usr", "/usr",
-        "--ro-bind", "/lib", "/lib",
-        "--ro-bind", "/bin", "/bin",
-        "--ro-bind", "/sbin", "/sbin",
-        "--tmpfs", str(sandbox_dir),
+        "--ro-bind", "/", "/",
+        "--bind", workspace_path, "/workspace",
+        "--tmpfs", "/tmp",
+        "--tmpfs", "/var/tmp",
         "--dev", "/dev",
         "--proc", "/proc",
-        "--ro-bind", "/etc/resolv.conf", "/etc/resolv.conf",
-        "--chdir", str(sandbox_dir),
         "--hostname", f"sandbox-{session_id[:8]}",
+        "--chdir", "/workspace",
         "node",
         cli_path,
     ]
