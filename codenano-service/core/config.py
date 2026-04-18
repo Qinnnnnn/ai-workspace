@@ -13,7 +13,7 @@ def _get_required(key: str) -> str:
     return val
 
 
-ANTHROPIC_API_KEY = _get_required("ANTHROPIC_AUTH_TOKEN")
+ANTHROPIC_AUTH_TOKEN = _get_required("ANTHROPIC_AUTH_TOKEN")
 ANTHROPIC_BASE_URL = os.environ.get("ANTHROPIC_BASE_URL")
 ANTHROPIC_MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-6")
 CODENANO_CLI_PATH = os.environ.get("CODENANO_CLI_PATH", "../codenano-cli/dist/index.js")

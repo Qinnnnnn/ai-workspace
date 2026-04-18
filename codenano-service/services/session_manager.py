@@ -7,7 +7,7 @@ from pathlib import Path
 
 from services.rpc_client import JsonRpcClient
 from services.sandbox import build_bwrap_args
-from core.config import CODENANO_CLI_PATH, SB_TTL_MINUTES, ANTHROPIC_API_KEY, ANTHROPIC_BASE_URL, ANTHROPIC_MODEL, WORKSPACE_BASE_DIR
+from core.config import CODENANO_CLI_PATH, SB_TTL_MINUTES, ANTHROPIC_AUTH_TOKEN, ANTHROPIC_BASE_URL, ANTHROPIC_MODEL, WORKSPACE_BASE_DIR
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +41,7 @@ class SubprocessRegistry:
             stdin=asyncio.subprocess.PIPE,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
-            env={**os.environ, "ANTHROPIC_API_KEY": ANTHROPIC_API_KEY, **({"ANTHROPIC_BASE_URL": ANTHROPIC_BASE_URL} if ANTHROPIC_BASE_URL else {}), "ANTHROPIC_MODEL": ANTHROPIC_MODEL},
+            env={**os.environ, "ANTHROPIC_AUTH_TOKEN": ANTHROPIC_AUTH_TOKEN, **({"ANTHROPIC_BASE_URL": ANTHROPIC_BASE_URL} if ANTHROPIC_BASE_URL else {}), "ANTHROPIC_MODEL": ANTHROPIC_MODEL},
         )
 
         client = JsonRpcClient(proc)
@@ -50,7 +50,7 @@ class SubprocessRegistry:
         # Default config, merged with provided config
         init_config = {
             "model": ANTHROPIC_MODEL,
-            "apiKey": ANTHROPIC_API_KEY,
+            "apiKey": ANTHROPIC_AUTH_TOKEN,
         }
         if ANTHROPIC_BASE_URL:
             init_config["baseURL"] = ANTHROPIC_BASE_URL
