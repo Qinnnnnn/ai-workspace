@@ -17,8 +17,7 @@ async def lifespan(app: FastAPI):
     global registry
 
     if not check_bwrap():
-        logger.error("bwrap is not available. Install with: sudo apt install bubblewrap")
-        raise RuntimeError("bwrap is not installed")
+        logger.warning("bwrap is not available. Running without sandbox.")
 
     logger.info("Starting SubprocessRegistry...")
     registry = SubprocessRegistry()
