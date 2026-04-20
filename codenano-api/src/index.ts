@@ -6,6 +6,10 @@ import { sessionsRoutes } from './routes/sessions.js'
 import { hooksRoutes } from './routes/hooks.js'
 import { memoryRoutes } from './routes/memory.js'
 import { mcpRoutes } from './routes/mcp.js'
+import { toolsRoutes } from './routes/tools.js'
+import { costRoutes } from './routes/cost.js'
+import { gitRoutes } from './routes/git.js'
+import { skillsRoutes } from './routes/skills.js'
 import { getSessionRegistry } from './services/session-registry.js'
 
 // Validate required env vars
@@ -32,6 +36,10 @@ await fastify.register(sessionsRoutes)
 await fastify.register(hooksRoutes)
 await fastify.register(memoryRoutes)
 await fastify.register(mcpRoutes)
+await fastify.register(toolsRoutes)
+await fastify.register(costRoutes)
+await fastify.register(gitRoutes)
+await fastify.register(skillsRoutes)
 
 // Graceful shutdown
 const registry = getSessionRegistry()

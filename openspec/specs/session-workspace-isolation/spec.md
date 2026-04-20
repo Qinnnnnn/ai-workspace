@@ -1,6 +1,8 @@
 ## Purpose
 
-Provide filesystem-level isolation for each agent session using bwrap sandboxing. Each session operates in its own workspace directory and cannot access other sessions' data or host system files.
+> **DEPRECATED**: This specification has been deprecated as of the codenano-api-library-refactor change. Session workspace isolation via bwrap has been replaced by codenano's built-in `path-guard` as described in the `direct-integration` capability.
+
+~~Provide filesystem-level isolation for each agent session using bwrap sandboxing. Each session operates in its own workspace directory and cannot access other sessions' data or host system files.~~
 
 ## ADDED Requirements
 

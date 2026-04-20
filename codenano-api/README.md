@@ -28,6 +28,10 @@ This service exposes the full codenano SDK capability via HTTP API, enabling Pyt
 - **Tool permissions** — Rule-based allow/deny/ask per tool
 - **Memory API** — Cross-session memory operations
 - **MCP integration** — Connect and manage MCP servers
+- **Custom Tools** — Define and manage custom tools at runtime
+- **Cost Tracking** — Calculate API usage costs
+- **Git Integration** — Query git repository state
+- **Skills Management** — Load and expand skill files
 
 ## Setup
 
@@ -340,6 +344,161 @@ DELETE /api/v1/mcp/my-server
 ```
 
 Response: `{ "ok": true }`
+
+### Custom Tools
+
+#### Define Tool
+
+```bash
+POST /api/v1/tools
+Content-Type: application/json
+
+{
+  "name": "my-tool",
+  "description": "A custom tool",
+  "inputSchema": {
+    "query": { "type": "string" },
+    "limit": { "type": "number" }
+  }
+}
+```
+
+Response: `{ "ok": true, "toolName": "my-tool" }`
+
+#### List Tools
+
+```bash
+GET /api/v1/tools
+```
+
+Response:
+```json
+{
+  "tools": [
+    { "name": "my-tool", "description": "A custom tool" }
+  ]
+}
+```
+
+#### Get/Delete Tool
+
+```bash
+GET /api/v1/tools/my-tool
+DELETE /api/v1/tools/my-tool
+```
+
+### Cost Tracking
+
+#### Get Model Pricing
+
+```bash
+GET /api/v1/cost/pricing
+GET /api/v1/cost/pricing?model=claude-sonnet-4-6
+```
+
+Response:
+```json
+{
+  "models": [
+    { "model": "claude-sonnet-4-6", "pricing": { "input": 0.003, "output": 0.015 } }
+  ]
+}
+```
+
+#### Calculate Cost
+
+```bash
+POST /api/v1/cost/calculate
+Content-Type: application/json
+
+{
+  "model": "claude-sonnet-4-6",
+  "usage": {
+    "inputTokens": 1000,
+    "outputTokens": 500,
+    "cacheCreationInputTokens": 0,
+    "cacheReadInputTokens": 0
+  }
+}
+```
+
+Response:
+```json
+{
+  "model": "claude-sonnet-4-6",
+  "usage": {...},
+  "costUSD": 0.0135
+}
+```
+
+### Git Integration
+
+#### Get Git State
+
+```bash
+GET /api/v1/git/state
+GET /api/v1/git/state?path=/workspace/repo
+```
+
+Response:
+```json
+{
+  "branch": "main",
+  "clean": false,
+  "ahead": 2,
+  "behind": 0,
+  "status": "modified"
+}
+```
+
+### Skills Management
+
+#### List Skills
+
+```bash
+GET /api/v1/skills
+GET /api/v1/skills?path=/workspace/.claude/skills
+```
+
+Response:
+```json
+{
+  "skills": [
+    {
+      "name": "code-review",
+      "description": "Review code changes",
+      "filePath": "/workspace/.claude/skills/code-review.md",
+      "allowedTools": ["Bash", "FileRead"],
+      "arguments": [{ "name": "target", "required": true }]
+    }
+  ]
+}
+```
+
+#### Get Skill Content
+
+```bash
+GET /api/v1/skills/code-review
+```
+
+#### Expand Skill Content
+
+```bash
+POST /api/v1/skills/expand
+Content-Type: application/json
+
+{
+  "content": "Review {{target}} for bugs",
+  "args": "target=src/main.py"
+}
+```
+
+Response:
+```json
+{
+  "expanded": "Review src/main.py for bugs"
+}
+```
 
 ## AgentConfig Options
 

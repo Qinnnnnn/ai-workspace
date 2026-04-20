@@ -15,7 +15,6 @@ export class HookCoordinator {
 
   setSocket(socket: WebSocket | null): void {
     if (this.socket && this.socket !== socket) {
-      // Clear any pending hooks when socket changes
       for (const [hookId, pending] of this.pendingHooks) {
         clearTimeout(pending.timeout)
         this.pendingHooks.delete(hookId)
@@ -39,12 +38,10 @@ export class HookCoordinator {
     data: Record<string, unknown>
   ): Promise<HookDecision> {
     if (!this.socket) {
-      // No socket connected - default to allow
       return { behavior: 'allow' }
     }
 
     if (!this.isHookRegistered(hookType)) {
-      // Hook not registered - default to allow
       return { behavior: 'allow' }
     }
 
@@ -53,7 +50,6 @@ export class HookCoordinator {
     return new Promise<HookDecision>((resolve, reject) => {
       const timeout = setTimeout(() => {
         this.pendingHooks.delete(hookId)
-        // Timeout defaults to allow
         resolve({ behavior: 'allow' })
       }, HOOK_TIMEOUT_MS)
 
@@ -68,7 +64,7 @@ export class HookCoordinator {
 
       try {
         this.socket!.send(JSON.stringify(event))
-      } catch (err) {
+      } catch {
         clearTimeout(timeout)
         this.pendingHooks.delete(hookId)
         resolve({ behavior: 'allow' })

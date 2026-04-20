@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify'
 import { getSessionRegistry } from '../services/session-registry.js'
-import { HookCoordinator } from '../services/hook-coordinator.js'
+import { HookCoordinator } from '../hooks/hook-coordinator.js'
 import type { HookType, HookDecision } from '../types/index.js'
 
 interface RegisterHookMessage {
@@ -29,11 +29,12 @@ export async function hooksRoutes(fastify: FastifyInstance): Promise<void> {
       return
     }
 
-    // Allow connection even if hooks weren't pre-registered - can register dynamically via register_hook
-    if (!entry.hookCoordinator) {
-      entry.hookCoordinator = new HookCoordinator()
+    // Get or create hook coordinator for this session
+    let coordinator = entry.hookCoordinator
+    if (!coordinator) {
+      coordinator = new HookCoordinator()
+      entry.hookCoordinator = coordinator
     }
-    const coordinator = entry.hookCoordinator
 
     coordinator.setSocket(socket as any)
 
@@ -43,11 +44,11 @@ export async function hooksRoutes(fastify: FastifyInstance): Promise<void> {
 
         if (msg.type === 'register_hook') {
           const registerMsg = msg as RegisterHookMessage
-          coordinator.registerHooks(registerMsg.hooks as HookType[])
+          coordinator!.registerHooks(registerMsg.hooks as HookType[])
           socket.send(JSON.stringify({ type: 'registered', hooks: registerMsg.hooks }))
         } else if (msg.type === 'hook_decision') {
           const decisionMsg = msg as HookDecisionMessage
-          coordinator.onDecision(decisionMsg.hookId, decisionMsg.decision)
+          coordinator!.onDecision(decisionMsg.hookId, decisionMsg.decision)
         } else if (msg.type === 'ping') {
           socket.send(JSON.stringify({ type: 'pong' }))
         }
@@ -57,11 +58,11 @@ export async function hooksRoutes(fastify: FastifyInstance): Promise<void> {
     })
 
     socket.on('close', () => {
-      coordinator.setSocket(null)
+      coordinator?.setSocket(null)
     })
 
     socket.on('error', () => {
-      coordinator.setSocket(null)
+      coordinator?.setSocket(null)
     })
   })
 }

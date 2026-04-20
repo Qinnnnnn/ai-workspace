@@ -1,6 +1,8 @@
 ## Purpose
 
-Provide complete Linux namespace isolation for agent sessions using bwrap, allowing agents to operate in a sandboxed environment without affecting the host system.
+> **DEPRECATED**: This specification has been deprecated as of the codenano-api-library-refactor change. The bwrap sandbox has been removed in favor of codenano's built-in `path-guard` for workspace isolation.
+
+~~Provide complete Linux namespace isolation for agent sessions using bwrap, allowing agents to operate in a sandboxed environment without affecting the host system.~~
 
 ## ADDED Requirements
 
