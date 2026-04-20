@@ -51,6 +51,5 @@
     "anthropic",
     "claude"
   ],
-  "author": "Adam Li",
   "license": "MIT"
 }
