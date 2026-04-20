@@ -2,12 +2,11 @@
 
 ## 环境要求
 
-- Python 3.12+
 - Node.js 18+
-- [bubblewrap](https://github.com/containers/bubblewrap)（沙箱隔离）
+- [bubblewrap](https://github.com/containers/bubblewrap)（沙箱隔离，可选）
 
 ```bash
-# 安装 bubblewrap
+# 安装 bubblewrap (Linux)
 sudo apt install bubblewrap
 
 # 验证
@@ -16,58 +15,55 @@ bwrap --version
 
 ## 构建依赖
 
-codenano-cli 需要先构建：
-
 ```bash
-# 构建 codenano 核心
-cd codenano
-npm install && npm run build
-
-# 构建 CLI
-cd ../codenano-cli
+# 安装 agent-service 依赖
+cd agent-service
 npm install && npm run build
 ```
 
 ## 环境变量配置
 
-创建 `codenano-service/.env`:
+创建 `agent-service/.env`:
 
 ```bash
-ANTHROPIC_API_KEY=your-api-key-here
-# 可选：自定义 API 端点（如代理服务器）
-# ANTHROPIC_BASE_URL=https://api.anthropic.com
-CODENANO_CLI_PATH=../codenano-cli/dist/index.js
-SB_TTL_MINUTES=30
+ANTHROPIC_AUTH_TOKEN=your-api-key-here
+# 可选配置
+ANTHROPIC_BASE_URL=https://api.anthropic.com
+ANTHROPIC_MODEL=claude-sonnet-4-6
 LOG_LEVEL=INFO
-WORKSPACE_BASE_DIR=/tmp/host_sessions
+AGENT_SERVICE_PORT=8000
 ```
 
 | 变量 | 必填 | 默认值 | 说明 |
 |------|------|--------|------|
-| `ANTHROPIC_API_KEY` | 是 | - | Anthropic API 密钥 |
-| `ANTHROPIC_BASE_URL` | 否 | - | 自定义 API 端点（如代理服务器） |
-| `CODENANO_CLI_PATH` | 否 | `../codenano-cli/dist/index.js` | codenano CLI 路径 |
-| `SB_TTL_MINUTES` | 否 | `30` | Session 存活时间（分钟） |
+| `ANTHROPIC_AUTH_TOKEN` | 是 | - | Anthropic API 密钥 |
+| `ANTHROPIC_BASE_URL` | 否 | `https://api.anthropic.com` | API 端点 |
+| `ANTHROPIC_MODEL` | 否 | `claude-sonnet-4-6` | 默认模型 |
 | `LOG_LEVEL` | 否 | `INFO` | 日志级别 |
-| `WORKSPACE_BASE_DIR` | 否 | `/tmp/host_sessions` | 工作空间根目录 |
+| `AGENT_SERVICE_PORT` | 否 | `8000` | 服务端口 |
 
 ## 启动服务
 
 ```bash
-cd codenano-service
-uv run uvicorn main:app --reload --host 0.0.0.0 --port 8000
+cd agent-service
+npm run start
 ```
 
 服务启动后会：
-1. 检查 `bwrap` 是否可用
-2. 初始化 `SubprocessRegistry`
-3. 启动 FastAPI 应用
+1. 验证 `ANTHROPIC_AUTH_TOKEN` 必填变量
+2. 初始化 SessionRegistry
+3. 启动 Fastify HTTP/WebSocket 服务
 
 ## 验证服务运行
 
 ```bash
-# 访问 API 文档
-open http://localhost:8000/docs
+# 创建 session
+curl -X POST http://localhost:8000/api/v1/sessions \
+  -H "Content-Type: application/json" \
+  -d '{"config": {"model": "claude-sonnet-4-6"}}'
+
+# 列出 sessions
+curl http://localhost:8000/api/v1/sessions
 ```
 
 ## API 参考
@@ -78,36 +74,87 @@ open http://localhost:8000/docs
 curl -X POST http://localhost:8000/api/v1/sessions \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "claude-sonnet-4-6",
-    "systemPrompt": "你是一个有帮助的助手",
-    "maxOutputTokens": 16384,
-    "thinkingConfig": "disabled"
+    "config": {
+      "model": "claude-sonnet-4-6",
+      "tools": ["Bash", "FileRead", "FileWrite"],
+      "toolPermissions": {"Bash": "ask"}
+    }
   }'
 ```
 
-**支持的参数**：
+**支持的配置参数**：
 
 | 参数 | 类型 | 说明 |
 |------|------|------|
 | `model` | string | Claude 模型，默认 `claude-sonnet-4-6` |
+| `maxTurns` | number | 最大对话轮数 |
+| `tools` | string[] | 启用的工具列表 |
+| `toolPreset` | string | 工具预设：`core`、`extended`、`all` |
+| `toolPermissions` | Record<string, 'allow'\\| 'deny'\\| 'ask'> | 工具权限规则 |
+| `mcpServers` | McpServerConfig[] | MCP 服务器配置 |
 | `systemPrompt` | string | 系统提示词 |
-| `overrideSystemPrompt` | string | 完全替换系统提示词 |
-| `appendSystemPrompt` | string | 追加到系统提示词末尾 |
-| `maxOutputTokens` | number | 最大输出 token 数 |
-| `thinkingConfig` | string | `adaptive` 或 `disabled` |
 
 ### 发送消息
 
 ```bash
-# 流式响应（默认）
+# 流式响应（SSE）
 curl -X POST http://localhost:8000/api/v1/sessions/{session_id}/message \
   -H "Content-Type: application/json" \
-  -d '{"prompt": "hello"}'
+  -d '{"prompt": "hello", "stream": true}'
 
 # 非流式响应
 curl -X POST http://localhost:8000/api/v1/sessions/{session_id}/message \
   -H "Content-Type: application/json" \
   -d '{"prompt": "hello", "stream": false}'
+```
+
+### Hook WebSocket
+
+客户端可通过 WebSocket 接收 hook 事件并响应：
+
+```bash
+# 连接 hook WebSocket
+ws://localhost:8000/ws/sessions/{session_id}/hooks
+```
+
+注册 hooks 后，客户端可接收 `onPreToolUse` 等事件并决定 allow/deny。
+
+### Memory API
+
+```bash
+# 保存 memory
+curl -X POST http://localhost:8000/api/v1/memory \
+  -H "Content-Type: application/json" \
+  -d '{"key": "project-context", "content": "This is a Python ML project"}'
+
+# 读取 memory
+curl http://localhost:8000/api/v1/memory/project-context
+
+# 列出所有 memories
+curl http://localhost:8000/api/v1/memory
+
+# 删除 memory
+curl -X DELETE http://localhost:8000/api/v1/memory/project-context
+```
+
+### MCP 服务器管理
+
+```bash
+# 连接 MCP 服务器
+curl -X POST http://localhost:8000/api/v1/mcp/connect \
+  -H "Content-Type: application/json" \
+  -d '{"serverId": "filesystem", "config": {"command": "npx", "args": ["-y", "@modelcontextprotocol/server-filesystem", "/workspace"]}}'
+
+# 列出 MCP tools
+curl http://localhost:8000/api/v1/mcp/tools
+
+# 调用 MCP tool
+curl -X POST http://localhost:8000/api/v1/mcp/tools/call \
+  -H "Content-Type: application/json" \
+  -d '{"serverId": "filesystem", "toolName": "mcp__server__read_file", "toolInput": {"path": "/workspace/test.txt"}}'
+
+# 断开 MCP 服务器
+curl -X DELETE http://localhost:8000/api/v1/mcp/{serverId}
 ```
 
 ### 其他端点
@@ -129,31 +176,37 @@ curl -X DELETE http://localhost:8000/api/v1/sessions/{session_id}
 ## 开发调试
 
 ```bash
-# 开启 debug 日志
-LOG_LEVEL=DEBUG uv run uvicorn main:app --reload
+# 开发模式（热重载）
+npm run dev
 
-# 查看详细错误
-uv run uvicorn main:app --reload --log-level debug
+# 查看日志
+tail -f logs/agent-service.log
 ```
 
 ## 常见问题
 
-### bwrap 不可用
+### ANTHROPIC_AUTH_TOKEN 未设置
 
 ```
-RuntimeError: bwrap is not installed. Install with: sudo apt install bubblewrap
-```
-
-**解决**: 安装 bubblewrap
-
-```bash
-sudo apt install bubblewrap
-```
-
-### ANTHROPIC_API_KEY 未设置
-
-```
-ValueError: Required environment variable not set: ANTHROPIC_API_KEY
+Error: ANTHROPIC_AUTH_TOKEN is required
 ```
 
 **解决**: 确保 `.env` 文件存在且包含有效的 API key
+
+### WebSocket 连接失败
+
+```
+Error: Session not found
+```
+
+**解决**: 确保 session 存在，session ID 正确
+
+### bwrap 不可用
+
+bubblewrap 是可选的，用于沙箱隔离。服务可在没有 bwrap 的情况下运行（开发模式）。
+
+```bash
+# 跳过 bwrap 检查（开发环境）
+export ALLOW_NO_BWRAP=1
+npm run dev
+```
