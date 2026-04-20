@@ -1,12 +1,12 @@
 # AI Workspace
 
-Personal development environment for building AI-native applications.
+个人开发环境，用于构建 AI 原生应用。
 
-## Projects
+## 项目
 
 ### [codenano](./codenano/)
 
-Lightweight AI coding agent SDK (~8,000 lines, MIT licensed).
+轻量级 AI 编程 Agent SDK（约 8,000 行代码，MIT 许可）。
 
 ```typescript
 import { createAgent, coreTools } from 'codenano'
@@ -19,13 +19,13 @@ const agent = createAgent({
 const result = await agent.ask('Read package.json and summarize it')
 ```
 
-**Features:** Agent loop, 17 built-in tools, session persistence, memory system, MCP support, streaming, lifecycle hooks, cost tracking, git integration.
+**功能：** Agent 循环、17 个内置工具、会话持久化、记忆系统、MCP 支持、流式输出、生命周期钩子、成本追踪、Git 集成。
 
-See [codenano/README.md](./codenano/README.md) for full documentation.
+详细文档见 [codenano/README.md](./codenano/README.md)
 
 ### [codenano-api](./codenano-api/)
 
-Node.js Fastify HTTP/WebSocket service wrapping codenano SDK. Provides session management, SSE streaming, and tool permission control.
+基于 Node.js + Fastify 的 HTTP/WebSocket 服务，封装 codenano SDK。提供会话管理、SSE 流式响应、工具权限控制。
 
 ```bash
 cd codenano-api
@@ -33,19 +33,19 @@ npm install && npm run build
 ANTHROPIC_AUTH_TOKEN=sk-ant-... npm start
 ```
 
-**API Endpoints:**
-- `POST /api/v1/sessions` - Create session
-- `POST /api/v1/sessions/:id/message` - Send message (SSE streaming)
-- `GET /api/v1/sessions/:id/history` - Get conversation history
-- `DELETE /api/v1/sessions/:id` - Delete session
+**API 端点：**
+- `POST /api/v1/sessions` - 创建会话
+- `POST /api/v1/sessions/:id/message` - 发送消息（SSE 流式）
+- `GET /api/v1/sessions/:id/history` - 获取对话历史
+- `DELETE /api/v1/sessions/:id` - 删除会话
 
-See [docs/codenano-api.md](./docs/codenano-api.md) for full API reference.
+详细文档见 [docs/codenano-api.md](./docs/codenano-api.md)
 
 ### [openspec](./openspec/)
 
-Experimental change management system. See `openspec/config.yaml` for configuration.
+实验性变更管理系统。配置见 `openspec/config.yaml`。
 
-## Documentation
+## 文档
 
-- [Codenano API](./docs/codenano-api.md) - Complete API reference
-- [Local Development](./docs/local-development.md) - Setup and run codenano-api
+- [Codenano API](./docs/codenano-api.md) - 完整 API 文档
+- [本地开发](./docs/local-development.md) - 本地启动和测试指南
