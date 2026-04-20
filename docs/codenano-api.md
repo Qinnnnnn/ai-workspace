@@ -56,6 +56,17 @@ codenano SDK 的 Memory 存储为**本地文件系统**，接口返回字段为 
 
 ---
 
+## 新功能
+
+本次重构移除了 subprocess/bwrap 架构，改用直接 TypeScript 库集成：
+
+- **移除**: bwrap 沙箱依赖
+- **移除**: agent-wrapper.js 子进程包装
+- **新增**: 直接调用 codenano SDK
+- **新增**: 路径验证通过 codenano 内置的 path-guard
+
+---
+
 ## Session API
 
 ### 创建 Session
@@ -294,12 +305,12 @@ data: {"type":"result","text":"...","usage":{...},"stopReason":"end_turn"}
 
 **响应**: `200 OK`
 
-> **注意**: History 在沙箱模式下不可用，始终返回空数组。
-
 ```json
 {
-  "history": [],
-  "message": "History not available in sandboxed mode"
+  "history": [
+    {"role": "user", "content": "Hello"},
+    {"role": "assistant", "content": [{"type": "text", "text": "Hi"}]}
+  ]
 }
 ```
 
@@ -663,6 +674,311 @@ MCP (Model Context Protocol) 服务器生命周期管理。
 ```json
 {
   "error": "MCP server not found"
+}
+```
+
+---
+
+## Tools API
+
+运行时定义和管理自定义工具。
+
+### 定义工具
+
+**端点**: `POST /api/v1/tools`
+
+**请求体**:
+
+```json
+{
+  "name": "my-tool",
+  "description": "A custom tool",
+  "inputSchema": {
+    "query": { "type": "string" },
+    "limit": { "type": "number" }
+  }
+}
+```
+
+**响应**: `200 OK`
+
+```json
+{
+  "ok": true,
+  "toolName": "my-tool"
+}
+```
+
+**支持的类型**: `string`, `number`, `boolean`
+
+#### 错误响应: `400 Bad Request`
+
+```json
+{
+  "error": "name, description, and inputSchema are required"
+}
+```
+
+---
+
+### 列出工具
+
+**端点**: `GET /api/v1/tools`
+
+**响应**: `200 OK`
+
+```json
+{
+  "tools": [
+    { "name": "my-tool", "description": "A custom tool" }
+  ]
+}
+```
+
+---
+
+### 获取工具
+
+**端点**: `GET /api/v1/tools/:name`
+
+**响应**: `200 OK`
+
+```json
+{
+  "name": "my-tool",
+  "description": "A custom tool"
+}
+```
+
+#### 错误响应: `404 Not Found`
+
+```json
+{
+  "error": "Tool not found"
+}
+```
+
+---
+
+### 删除工具
+
+**端点**: `DELETE /api/v1/tools/:name`
+
+**响应**: `200 OK`
+
+```json
+{
+  "ok": true
+}
+```
+
+#### 错误响应: `404 Not Found`
+
+```json
+{
+  "error": "Tool not found"
+}
+```
+
+---
+
+## Cost API
+
+成本追踪和模型定价查询。
+
+### 获取模型定价
+
+**端点**: `GET /api/v1/cost/pricing`
+
+**查询参数**:
+
+| 参数 | 说明 |
+|------|------|
+| `model` | 可选，指定模型获取其定价 |
+
+**响应**: `200 OK`
+
+获取所有模型定价：
+
+```json
+{
+  "models": [
+    { "model": "claude-sonnet-4-6", "pricing": { "input": 0.003, "output": 0.015 } },
+    { "model": "claude-opus-4-6", "pricing": { "input": 0.015, "output": 0.075 } }
+  ]
+}
+```
+
+获取指定模型定价：
+
+```json
+{
+  "model": "claude-sonnet-4-6",
+  "pricing": { "input": 0.003, "output": 0.015 }
+}
+```
+
+---
+
+### 计算成本
+
+**端点**: `POST /api/v1/cost/calculate`
+
+**请求体**:
+
+```json
+{
+  "model": "claude-sonnet-4-6",
+  "usage": {
+    "inputTokens": 1000,
+    "outputTokens": 500,
+    "cacheCreationInputTokens": 0,
+    "cacheReadInputTokens": 0
+  }
+}
+```
+
+**响应**: `200 OK`
+
+```json
+{
+  "model": "claude-sonnet-4-6",
+  "usage": { "inputTokens": 1000, "outputTokens": 500, ... },
+  "costUSD": 0.0135
+}
+```
+
+#### 错误响应: `400 Bad Request`
+
+```json
+{
+  "error": "model and usage are required"
+}
+```
+
+---
+
+## Git API
+
+获取 Git 仓库状态。
+
+### 获取 Git 状态
+
+**端点**: `GET /api/v1/git/state`
+
+**查询参数**:
+
+| 参数 | 说明 |
+|------|------|
+| `path` | 可选，指定仓库路径，默认当前目录 |
+
+**响应**: `200 OK`
+
+```json
+{
+  "branch": "main",
+  "clean": false,
+  "ahead": 2,
+  "behind": 0,
+  "status": "modified"
+}
+```
+
+#### 错误响应: `404 Not Found`
+
+```json
+{
+  "error": "Not a git repository"
+}
+```
+
+---
+
+## Skills API
+
+管理和加载 skills 文件。
+
+### 列出 Skills
+
+**端点**: `GET /api/v1/skills`
+
+**查询参数**:
+
+| 参数 | 说明 |
+|------|------|
+| `path` | 可选，指定 skills 目录，默认 `.claude/skills` |
+
+**响应**: `200 OK`
+
+```json
+{
+  "skills": [
+    {
+      "name": "code-review",
+      "description": "Review code changes",
+      "filePath": "/workspace/.claude/skills/code-review.md",
+      "allowedTools": ["Bash", "FileRead"],
+      "arguments": [{ "name": "target", "required": true }]
+    }
+  ]
+}
+```
+
+---
+
+### 获取 Skill 内容
+
+**端点**: `GET /api/v1/skills/:name`
+
+**响应**: `200 OK`
+
+```json
+{
+  "name": "code-review",
+  "description": "Review code changes",
+  "content": "## Code Review...",
+  "filePath": "/workspace/.claude/skills/code-review.md"
+}
+```
+
+#### 错误响应: `404 Not Found`
+
+```json
+{
+  "error": "Skill not found"
+}
+```
+
+---
+
+### 展开 Skill 内容
+
+将 skill 模板中的变量替换为实际值。
+
+**端点**: `POST /api/v1/skills/expand`
+
+**请求体**:
+
+```json
+{
+  "content": "Review {{target}} for bugs",
+  "args": "target=src/main.py"
+}
+```
+
+**响应**: `200 OK`
+
+```json
+{
+  "expanded": "Review src/main.py for bugs"
+}
+```
+
+#### 错误响应: `400 Bad Request`
+
+```json
+{
+  "error": "content is required"
 }
 ```
 
