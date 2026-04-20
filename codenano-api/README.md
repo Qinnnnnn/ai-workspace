@@ -1,83 +1,49 @@
 # Codenano API
 
-A production-ready Node.js HTTP/WebSocket service providing direct integration with the [codenano](https://github.com/Adamlixi/codenano) SDK for building AI-powered coding agents.
+Node.js HTTP/WebSocket service that provides direct integration with the [codenano](https://github.com/Adamlixi/codenano) SDK for building AI coding agents.
 
 ## Overview
 
-Codenano API exposes the complete codenano SDK capabilities via a RESTful HTTP interface with WebSocket support for real-time events. This architecture enables seamless integration with Python clients, ML pipelines, and external services while maintaining full access to codenano's agent capabilities.
-
-```
-┌─────────────────┐       HTTP/WebSocket        ┌────────────────────┐
-│   Python CLI    │  ───────────────────────►  │   Codenano API     │
-│   Pipeline      │  ◄───────────────────────  │   (Fastify)        │
-└─────────────────┘        SSE/WS             └─────────┬──────────┘
-                                                        │
-                                                        │ Direct Import
-                                                        ▼
-                                              ┌────────────────────┐
-                                              │     codenano       │
-                                              │       SDK          │
-                                              └────────────────────┘
-```
+This service exposes the full codenano SDK capability via HTTP API, enabling clients to interact with AI agents over HTTP.
 
 ## Architecture
 
-This service implements direct TypeScript library integration with codenano, replacing traditional subprocess orchestration:
+Direct TypeScript library integration with codenano:
 
-- **No bwrap sandbox** — Workspace isolation provided by codenano's built-in path-guard
-- **No subprocess overhead** — In-process agent execution reduces latency
-- **Full SDK access** — Complete API surface without protocol translation
+- No subprocess spawning
+- No bwrap sandbox dependency
+- Workspace isolation via codenano's built-in path-guard
 
-## Capabilities
+## Features
 
-| Category | Features |
-|----------|----------|
-| **Session Management** | Create, list, retrieve, delete sessions with TTL-based auto-cleanup |
-| **Real-time Streaming** | Server-Sent Events (SSE) for message streaming and tool execution progress |
-| **Hook System** | WebSocket-based permission callbacks (`onPreToolUse`, `onTurnEnd`, etc.) |
-| **Tool Control** | Rule-based allow/deny/ask permissions per tool |
-| **Memory** | Cross-session memory persistence via SDK storage |
-| **MCP Integration** | Connect, manage, and call Model Context Protocol servers |
-| **Custom Tools** | Runtime tool definition and registration |
-| **Cost Tracking** | Model pricing lookup and usage cost calculation |
-| **Git Integration** | Repository state queries for context injection |
-| **Skills** | Skill file discovery, loading, and template expansion |
+- **Session management** — Create, list, get, delete sessions with TTL
+- **Streaming responses** — SSE for real-time agent events
+- **Hook callbacks** — WebSocket for `onPreToolUse`, `onTurnEnd`, etc.
+- **Tool permissions** — Rule-based allow/deny/ask per tool
+- **Memory API** — Cross-session memory operations
+- **MCP integration** — Connect and manage MCP servers
+- **Custom Tools** — Define and manage custom tools at runtime
+- **Cost Tracking** — Calculate API usage costs
+- **Git Integration** — Query git repository state
+- **Skills Management** — Load and expand skill files
 
-## Requirements
-
-- Node.js >= 18
-- Anthropic API key (`ANTHROPIC_AUTH_TOKEN`)
-
-## Installation
+## Setup
 
 ```bash
 npm install
 ```
-
-## Configuration
 
 Create a `.env` file:
 
 ```env
 ANTHROPIC_AUTH_TOKEN=sk-ant-your-api-key
 ANTHROPIC_MODEL=claude-sonnet-4-6
-LOG_LEVEL=info
+LOG_LEVEL=INFO
 AGENT_SERVICE_PORT=8000
 SB_TTL_MINUTES=30
-CODENANO_WORKSPACE=/path/to/workspace
 ```
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `ANTHROPIC_AUTH_TOKEN` | Yes | — | Anthropic API key |
-| `ANTHROPIC_BASE_URL` | No | `https://api.anthropic.com` | API endpoint |
-| `ANTHROPIC_MODEL` | No | `claude-sonnet-4-6` | Default model |
-| `LOG_LEVEL` | No | `info` | Logging level |
-| `AGENT_SERVICE_PORT` | No | `8000` | Service port |
-| `SB_TTL_MINUTES` | No | `30` | Session TTL (minutes) |
-| `CODENANO_WORKSPACE` | No | `/` | Workspace root for path validation |
-
-## Quick Start
+## Running
 
 ```bash
 # Development
@@ -94,7 +60,7 @@ npm start
 
 #### Create Session
 
-```http
+```bash
 POST /api/v1/sessions
 Content-Type: application/json
 
@@ -112,64 +78,110 @@ Content-Type: application/json
 
 Response:
 ```json
-{ "sessionId": "550e8400-e29b-41d4-a716-446655440000" }
+{ "sessionId": "uuid" }
 ```
 
 #### Send Message
 
-```http
+```bash
 POST /api/v1/sessions/:id/message
 Content-Type: application/json
 
 {
-  "prompt": "Explain this function",
+  "prompt": "Write a hello world program",
   "stream": true
 }
 ```
 
-**Streaming response (SSE):**
+Stream response (SSE):
 ```
-data: {"type":"query_start","sessionId":"...","turnIndex":0}
-data: {"type":"text","text":"This function..."}
-data: {"type":"tool_use","tool":"Bash","input":{"command":"ls"}}
-data: {"type":"tool_result","tool":"Bash","result":"..."}
-data: {"type":"result","text":"...","usage":{...},"stopReason":"end_turn"}
+data: {"type":"query_start","queryTracking":{...}}
+data: {"type":"text","text":"Hello"}
+data: {"type":"tool_use","toolName":"Bash",...}
+data: {"type":"result","result":{...}}
 ```
 
-**Non-streaming response:**
+Non-streaming response:
 ```json
 {
   "result": {
     "text": "...",
-    "usage": {"inputTokens": 100, "outputTokens": 200},
-    "stopReason": "end_turn"
+    "usage": {...},
+    "stopReason": "end_turn",
+    ...
   }
 }
 ```
 
-#### Session Endpoints
+#### Get Session
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/api/v1/sessions` | List all sessions |
-| `GET` | `/api/v1/sessions/:id` | Get session metadata |
-| `GET` | `/api/v1/sessions/:id/history` | Get conversation history |
-| `DELETE` | `/api/v1/sessions/:id` | Delete session |
+```bash
+GET /api/v1/sessions/:id
+```
 
-### Hook WebSocket
+Response:
+```json
+{
+  "sessionId": "uuid",
+  "createdAt": "2026-04-20T10:00:00Z",
+  "lastActivity": "2026-04-20T10:05:00Z"
+}
+```
 
-Connect to receive and respond to agent hooks:
+#### List Sessions
 
-```http
+```bash
+GET /api/v1/sessions
+```
+
+Response:
+```json
+{
+  "sessions": [
+    { "sessionId": "uuid1", "createdAt": "...", "lastActivity": "..." },
+    { "sessionId": "uuid2", "createdAt": "...", "lastActivity": "..." }
+  ]
+}
+```
+
+#### Delete Session
+
+```bash
+DELETE /api/v1/sessions/:id
+```
+
+Response: `{ "ok": true }`
+
+#### Get History
+
+```bash
+GET /api/v1/sessions/:id/history
+```
+
+Response:
+```json
+{
+  "history": [
+    { "role": "user", "content": "Hello" },
+    { "role": "assistant", "content": [{"type": "text", "text": "Hi"}] }
+  ]
+}
+```
+
+### Hooks (WebSocket)
+
+Connect to receive hook events:
+
+```bash
 GET /ws/sessions/:id/hooks
 ```
 
-**Register hooks:**
+Register hooks:
 ```json
 { "type": "register_hook", "hooks": ["onPreToolUse", "onTurnEnd"] }
 ```
 
-**Receive hook event:**
+Receive hook events:
 ```json
 {
   "type": "hook_event",
@@ -179,83 +191,329 @@ GET /ws/sessions/:id/hooks
 }
 ```
 
-**Respond with decision:**
+Respond with decision:
 ```json
-{ "type": "hook_decision", "hookId": "uuid", "decision": { "behavior": "allow" } }
+{
+  "type": "hook_decision",
+  "hookId": "uuid",
+  "decision": { "behavior": "allow" }
+}
+```
+
+Or deny:
+```json
+{
+  "type": "hook_decision",
+  "hookId": "uuid",
+  "decision": { "behavior": "deny", "message": "Not allowed" }
+}
+```
+
+Ping/pong for keepalive:
+```json
+{ "type": "ping" }
+→ { "type": "pong" }
 ```
 
 ### Memory
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/api/v1/memory` | Save memory |
-| `GET` | `/api/v1/memory` | List memories |
-| `GET` | `/api/v1/memory/:key` | Get memory |
-| `DELETE` | `/api/v1/memory/:key` | Delete memory |
+#### Save Memory
+
+```bash
+POST /api/v1/memory
+Content-Type: application/json
+
+{
+  "key": "project-context",
+  "content": "This is a Python ML project",
+  "type": "context"
+}
+```
+
+Response: `{ "ok": true }`
+
+#### Load Memory
+
+```bash
+GET /api/v1/memory/project-context
+```
+
+Response:
+```json
+{
+  "name": "project-context",
+  "description": "project-context",
+  "type": "context",
+  "content": "This is a Python ML project"
+}
+```
+
+#### List Memories
+
+```bash
+GET /api/v1/memory
+GET /api/v1/memory?pattern=project-*
+```
+
+Response:
+```json
+{
+  "memories": [
+    { "name": "...", "description": "...", "type": "...", "content": "..." }
+  ]
+}
+```
+
+#### Delete Memory
+
+```bash
+DELETE /api/v1/memory/project-context
+```
+
+Response: `{ "ok": true }`
 
 ### MCP Servers
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/api/v1/mcp/connect` | Connect MCP server |
-| `GET` | `/api/v1/mcp/tools` | List MCP tools |
-| `POST` | `/api/v1/mcp/tools/call` | Call MCP tool |
-| `DELETE` | `/api/v1/mcp/:serverId` | Disconnect server |
+#### Connect MCP Server
 
-### Tools
+```bash
+POST /api/v1/mcp/connect
+Content-Type: application/json
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/api/v1/tools` | Define custom tool |
-| `GET` | `/api/v1/tools` | List custom tools |
-| `GET` | `/api/v1/tools/:name` | Get tool |
-| `DELETE` | `/api/v1/tools/:name` | Delete tool |
+{
+  "serverId": "my-server",
+  "config": {
+    "command": "npx",
+    "args": ["-y", "@modelcontextprotocol/server-filesystem", "/workspace"]
+  }
+}
+```
 
-### Cost
+Response: `{ "ok": true, "serverId": "my-server" }`
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/api/v1/cost/pricing` | Get model pricing |
-| `POST` | `/api/v1/cost/calculate` | Calculate usage cost |
+#### List MCP Tools
 
-### Git
+```bash
+GET /api/v1/mcp/tools
+```
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/api/v1/git/state` | Get repository state |
+Response:
+```json
+{
+  "tools": [
+    { "serverId": "my-server", "tools": [...] }
+  ]
+}
+```
 
-### Skills
+#### Call MCP Tool
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/api/v1/skills` | List skills |
-| `GET` | `/api/v1/skills/:name` | Get skill content |
-| `POST` | `/api/v1/skills/expand` | Expand skill template |
+```bash
+POST /api/v1/mcp/tools/call
+Content-Type: application/json
 
-## AgentConfig Reference
+{
+  "serverId": "my-server",
+  "toolName": "read_file",
+  "toolInput": { "path": "/workspace/file.txt" }
+}
+```
+
+Response:
+```json
+{
+  "result": {
+    "content": "file contents...",
+    "isError": false
+  }
+}
+```
+
+#### Disconnect MCP Server
+
+```bash
+DELETE /api/v1/mcp/my-server
+```
+
+Response: `{ "ok": true }`
+
+### Custom Tools
+
+#### Define Tool
+
+```bash
+POST /api/v1/tools
+Content-Type: application/json
+
+{
+  "name": "my-tool",
+  "description": "A custom tool",
+  "inputSchema": {
+    "query": { "type": "string" },
+    "limit": { "type": "number" }
+  }
+}
+```
+
+Response: `{ "ok": true, "toolName": "my-tool" }`
+
+#### List Tools
+
+```bash
+GET /api/v1/tools
+```
+
+Response:
+```json
+{
+  "tools": [
+    { "name": "my-tool", "description": "A custom tool" }
+  ]
+}
+```
+
+#### Get/Delete Tool
+
+```bash
+GET /api/v1/tools/my-tool
+DELETE /api/v1/tools/my-tool
+```
+
+### Cost Tracking
+
+#### Get Model Pricing
+
+```bash
+GET /api/v1/cost/pricing
+GET /api/v1/cost/pricing?model=claude-sonnet-4-6
+```
+
+Response:
+```json
+{
+  "models": [
+    { "model": "claude-sonnet-4-6", "pricing": { "input": 0.003, "output": 0.015 } }
+  ]
+}
+```
+
+#### Calculate Cost
+
+```bash
+POST /api/v1/cost/calculate
+Content-Type: application/json
+
+{
+  "model": "claude-sonnet-4-6",
+  "usage": {
+    "inputTokens": 1000,
+    "outputTokens": 500,
+    "cacheCreationInputTokens": 0,
+    "cacheReadInputTokens": 0
+  }
+}
+```
+
+Response:
+```json
+{
+  "model": "claude-sonnet-4-6",
+  "usage": {...},
+  "costUSD": 0.0135
+}
+```
+
+### Git Integration
+
+#### Get Git State
+
+```bash
+GET /api/v1/git/state
+GET /api/v1/git/state?path=/workspace/repo
+```
+
+Response:
+```json
+{
+  "branch": "main",
+  "clean": false,
+  "ahead": 2,
+  "behind": 0,
+  "status": "modified"
+}
+```
+
+### Skills Management
+
+#### List Skills
+
+```bash
+GET /api/v1/skills
+GET /api/v1/skills?path=/workspace/.claude/skills
+```
+
+Response:
+```json
+{
+  "skills": [
+    {
+      "name": "code-review",
+      "description": "Review code changes",
+      "filePath": "/workspace/.claude/skills/code-review.md",
+      "allowedTools": ["Bash", "FileRead"],
+      "arguments": [{ "name": "target", "required": true }]
+    }
+  ]
+}
+```
+
+#### Get Skill Content
+
+```bash
+GET /api/v1/skills/code-review
+```
+
+#### Expand Skill Content
+
+```bash
+POST /api/v1/skills/expand
+Content-Type: application/json
+
+{
+  "content": "Review {{target}} for bugs",
+  "args": "target=src/main.py"
+}
+```
+
+Response:
+```json
+{
+  "expanded": "Review src/main.py for bugs"
+}
+```
+
+## AgentConfig Options
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `model` | string | `claude-sonnet-4-6` | Claude model |
-| `toolPreset` | `core\|extended\|all` | `core` | Tool preset |
-| `maxTurns` | number | — | Max conversation turns |
+| `toolPreset` | `core\|extended\|all` | `core` | Built-in tool set |
+| `maxTurns` | number | `30` | Max agent loop turns |
 | `thinkingConfig` | `adaptive\|disabled` | `disabled` | Thinking mode |
-| `maxOutputTokens` | number | `16384` | Max output tokens |
-| `mcpServers` | array | — | MCP server configs |
-| `persistence` | object | — | Session persistence settings |
-| `memory` | object | — | Memory configuration |
+| `maxOutputTokens` | number | `16384` | Max output per call |
+| `systemPrompt` | string | - | Custom system prompt |
+| `identity` | string | - | Agent identity |
+| `language` | string | - | Response language |
+| `autoCompact` | boolean | `true` | Auto-compact context |
+| `fallbackModel` | string | - | Fallback on 529 errors |
+| `mcpServers` | array | - | MCP server configs |
+| `persistence` | object | - | Session persistence |
+| `memory` | object | - | Memory configuration |
 
 ## Tool Permissions
 
-Control tool execution with permission rules:
+Control tool execution with rule-based permissions:
 
-| Mode | Behavior |
-|------|----------|
-| `allow` | Execute without notification |
-| `deny` | Block execution |
-| `ask` | Send WebSocket hook event (default) |
-
-Example:
 ```json
 {
   "toolPermissions": {
@@ -266,12 +524,19 @@ Example:
 }
 ```
 
-## Testing
+- `allow` — Execute without prompting
+- `deny` — Block execution, return error
+- `ask` — Send hook event via WebSocket
 
-```bash
-npm test
-```
+Default: `ask` for unspecified tools.
 
-## License
+## Environment Variables
 
-MIT
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `ANTHROPIC_AUTH_TOKEN` | Yes | - | Anthropic API key |
+| `ANTHROPIC_BASE_URL` | No | - | Custom API endpoint |
+| `ANTHROPIC_MODEL` | No | `claude-sonnet-4-6` | Default model |
+| `LOG_LEVEL` | No | `INFO` | Logging level |
+| `AGENT_SERVICE_PORT` | No | `8000` | HTTP port |
+| `SB_TTL_MINUTES` | No | `30` | Session TTL |
