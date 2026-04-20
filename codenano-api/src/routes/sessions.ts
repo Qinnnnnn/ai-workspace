@@ -5,7 +5,6 @@ import type {
   SendMessageBody,
   ServiceAgentConfig,
   HookType,
-  ToolPermission,
 } from '../types/index.js'
 
 const SSE_DELIMITER = '\n\n'
@@ -13,7 +12,6 @@ const sseWrite = (res: any, event: object) => {
   res.write(`data: ${JSON.stringify(event)}${SSE_DELIMITER}`)
 }
 
-// Schema for validation
 const sessionCreateSchema = {
   type: 'object',
   required: ['config'],
@@ -41,12 +39,10 @@ export async function sessionsRoutes(fastify: FastifyInstance): Promise<void> {
     const body = request.body as SessionCreateBody
     const { config, hooks = [], toolPermissions = {} } = body
 
-    // Validate toolPreset if provided
     if (config.toolPreset && !['core', 'extended', 'all'].includes(config.toolPreset)) {
       return reply.status(400).send({ error: 'Invalid tool preset. Must be "core", "extended", or "all".' })
     }
 
-    // Build agent config from .env + body overrides
     const agentConfig = {
       model: config.model ?? process.env.ANTHROPIC_MODEL ?? 'claude-sonnet-4-6',
       apiKey: process.env.ANTHROPIC_AUTH_TOKEN,
@@ -104,7 +100,7 @@ export async function sessionsRoutes(fastify: FastifyInstance): Promise<void> {
       sessionId: id,
       createdAt: entry.createdAt.toISOString(),
       lastActivity: entry.lastActivity.toISOString(),
-      historyLength: entry.session.history.length,
+      historyLength: entry.historyLength,
     })
   })
 
@@ -121,7 +117,7 @@ export async function sessionsRoutes(fastify: FastifyInstance): Promise<void> {
     return reply.send({ ok: true })
   })
 
-  // Get session history
+  // Get session history - not available for subprocess mode
   fastify.get('/api/v1/sessions/:id/history', async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = request.params as { id: string }
     const entry = registry.get(id)
@@ -131,7 +127,8 @@ export async function sessionsRoutes(fastify: FastifyInstance): Promise<void> {
     }
 
     registry.touch(id)
-    return reply.send({ history: entry.session.history })
+    // History is not tracked in subprocess mode - would need IPC to retrieve
+    return reply.send({ history: [], message: 'History not available in sandboxed mode' })
   })
 
   // Send message (streaming or non-streaming)
@@ -148,10 +145,9 @@ export async function sessionsRoutes(fastify: FastifyInstance): Promise<void> {
     registry.touch(id)
 
     if (!stream) {
-      // Non-streaming response
       try {
-        const result = await entry.session.send(prompt)
-        return reply.send({ result })
+        const result = await registry.sendMessage(id, prompt, false)
+        return reply.send({ result: result.result })
       } catch (err) {
         const error = err instanceof Error ? err.message : String(err)
         return reply.status(500).send({ error })
@@ -164,40 +160,11 @@ export async function sessionsRoutes(fastify: FastifyInstance): Promise<void> {
     reply.raw!.setHeader('Connection', 'keep-alive')
 
     try {
-      for await (const event of entry.session.stream(prompt)) {
-        // Check tool permission if this is a tool_use event
-        if (event.type === 'tool_use') {
-          const permission = entry.toolPermissions[event.toolName] ?? 'ask'
-
-          if (permission === 'deny') {
-            sseWrite(reply.raw!, {
-              type: 'tool_result',
-              toolUseId: event.toolUseId,
-              output: 'Tool blocked: denied by policy',
-              isError: true,
-            })
-            continue
-          }
-
-          if (permission === 'ask' && entry.hookCoordinator) {
-            const decision = await entry.hookCoordinator.emitAndWait('onPreToolUse', {
-              toolName: event.toolName,
-              toolInput: event.input,
-            })
-
-            if (decision.behavior === 'deny') {
-              sseWrite(reply.raw!, {
-                type: 'tool_result',
-                toolUseId: event.toolUseId,
-                output: decision.message ?? 'Tool blocked by hook',
-                isError: true,
-              })
-              continue
-            }
-          }
+      const { stream: eventStream } = await registry.sendMessage(id, prompt, true)
+      if (eventStream) {
+        for await (const event of eventStream) {
+          sseWrite(reply.raw!, event)
         }
-
-        sseWrite(reply.raw!, event)
       }
     } catch (err) {
       const error = err instanceof Error ? err.message : String(err)
