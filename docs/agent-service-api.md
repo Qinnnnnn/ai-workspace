@@ -58,7 +58,7 @@ http://localhost:8000
 | `maxTurns` | number | - | 最大对话轮数 |
 | `tools` | string[] | `coreTools()` | 启用的工具列表 |
 | `toolPreset` | string | `core` | 工具预设：`core`、`extended`、`all` |
-| `toolPermissions` | Record<string, 'allow'\\| 'deny'\\| 'ask'> | `{}` | 工具权限规则 (WIP) |
+| `toolPermissions` | Record<string, 'allow'\\| 'deny'\\| 'ask'> | `{}` | 工具权限规则 |
 | `mcpServers` | McpServerConfig[] | `[]` | MCP 服务器配置 (WIP) |
 | `systemPrompt` | string | - | 系统提示词 |
 | `overrideSystemPrompt` | string | - | 完全替换默认系统提示词 |
@@ -547,8 +547,6 @@ MCP (Model Context Protocol) 服务器生命周期管理。
 ---
 
 ## 工具权限
-
-> **⚠️ WIP** - 此功能尚未稳定，等待进一步开发。
 
 Session 创建时可配置工具权限规则。
 
