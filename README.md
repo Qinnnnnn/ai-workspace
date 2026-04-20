@@ -1,7 +1,5 @@
 # AI Workspace
 
-个人开发环境，用于构建 AI 原生应用。
-
 ## 项目
 
 ### [codenano](./codenano/)
