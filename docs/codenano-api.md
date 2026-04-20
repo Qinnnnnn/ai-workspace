@@ -411,6 +411,8 @@ Session 不存在时拒绝连接。
 
 ## Memory API
 
+> **WIP** - 此接口依赖 codenano SDK 本地文件系统存储。
+
 跨会话持久化记忆。
 
 ### 保存 Memory
@@ -459,7 +461,7 @@ Session 不存在时拒绝连接。
 }
 ```
 
-**注意**: 实际返回字段为 `name`/`description`，与请求的 `key` 不同。这是 SDK 行为，agent-service 无权修改。
+**注意**: 实际返回字段为 `name`/`description`，与请求的 `key` 不同。这是 SDK 行为，codenano-api 无权修改。
 
 #### 错误响应: `404 Not Found`
 

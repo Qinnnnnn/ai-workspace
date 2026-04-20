@@ -39,7 +39,7 @@ ANTHROPIC_AUTH_TOKEN=sk-ant-... npm start
 - `GET /api/v1/sessions/:id/history` - Get conversation history
 - `DELETE /api/v1/sessions/:id` - Delete session
 
-See [docs/agent-service-api.md](./docs/agent-service-api.md) for full API reference.
+See [docs/codenano-api.md](./docs/codenano-api.md) for full API reference.
 
 ### [openspec](./openspec/)
 
@@ -47,5 +47,5 @@ Experimental change management system. See `openspec/config.yaml` for configurat
 
 ## Documentation
 
-- [Agent Service API](./docs/agent-service-api.md) - Complete API reference
-- [Local Development](./docs/local-development.md) - Setup and run agent-service
+- [Codenano API](./docs/codenano-api.md) - Complete API reference
+- [Local Development](./docs/local-development.md) - Setup and run codenano-api
