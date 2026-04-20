@@ -1,4 +1,4 @@
-# Agent Service
+# Codenano API
 
 Node.js HTTP/WebSocket service that wraps the [codenano](https://github.com/Adamlixi/codenano) SDK for building AI coding agents.
 
@@ -8,7 +8,7 @@ This service exposes the full codenano SDK capability via HTTP API, enabling Pyt
 
 ```
 ┌─────────────┐    HTTP     ┌────────────────┐
-│   Python    │  ─────────► │  Agent Service │
+│   Python    │  ─────────► │  Codenano API  │
 │   Client   │  ◄───────── │  (Fastify)    │
 └─────────────┘   SSE/WS    └───────┬────────┘
                                     │

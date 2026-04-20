@@ -23,11 +23,12 @@ const result = await agent.ask('Read package.json and summarize it')
 
 See [codenano/README.md](./codenano/README.md) for full documentation.
 
-### [agent-service](./agent-service/)
+### [codenano-api](./codenano-api/)
 
 Node.js Fastify HTTP/WebSocket service wrapping codenano SDK. Provides session management, SSE streaming, and tool permission control.
 
 ```bash
+cd codenano-api
 npm install && npm run build
 ANTHROPIC_AUTH_TOKEN=sk-ant-... npm start
 ```

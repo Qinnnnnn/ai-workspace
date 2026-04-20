@@ -1,4 +1,4 @@
-# 启动服务进行测试
+# 启动 Codenano API 服务进行测试
 
 ## 环境要求
 
@@ -16,14 +16,14 @@ bwrap --version
 ## 构建依赖
 
 ```bash
-# 安装 agent-service 依赖
-cd agent-service
+# 安装 codenano-api 依赖
+cd codenano-api
 npm install && npm run build
 ```
 
 ## 环境变量配置
 
-创建 `agent-service/.env`:
+创建 `codenano-api/.env`:
 
 ```bash
 ANTHROPIC_AUTH_TOKEN=your-api-key-here
@@ -45,7 +45,7 @@ AGENT_SERVICE_PORT=8000
 ## 启动服务
 
 ```bash
-cd agent-service
+cd codenano-api
 npm run start
 ```
 
@@ -180,7 +180,7 @@ curl -X DELETE http://localhost:8000/api/v1/sessions/{session_id}
 npm run dev
 
 # 查看日志
-tail -f logs/agent-service.log
+tail -f logs/codenano-api.log
 ```
 
 ## 常见问题
