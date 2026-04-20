@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { createAgent, type Agent, type Session, type StreamEvent, listSessions } from 'codenano'
+import { createAgent, coreTools, extendedTools, allTools, type Agent, type Session, type StreamEvent, listSessions } from 'codenano'
 import { RpcServer } from './rpc/server.js'
 import type { InitParams, SendParams, CloseParams, HistoryParams, SessionInfo, ReadFileParams, ListFilesParams, FileInfo } from './types/rpc.js'
 import fs from 'fs/promises'
@@ -15,8 +15,27 @@ const sessionMeta = new Map<string, { createdAt: string; lastActivity: string }>
 server.register('init', async (params) => {
   const { config } = (params ?? {}) as unknown as InitParams
   if (!config) throw new Error('config is required')
+
+  const toolPreset = config.toolPreset ?? 'core'
+  let tools
+  switch (toolPreset) {
+    case 'core':
+      tools = coreTools()
+      break
+    case 'extended':
+      tools = extendedTools()
+      break
+    case 'all':
+      tools = allTools()
+      break
+    default:
+      throw new Error(`Invalid tool preset: "${toolPreset}". Must be "core", "extended", or "all".`)
+  }
+
+  const { toolPreset: _, ...agentConfig } = config
   agent = createAgent({
-    ...config,
+    ...agentConfig,
+    tools,
     persistence: { enabled: false },
   })
   return { ok: true }

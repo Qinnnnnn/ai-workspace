@@ -54,6 +54,8 @@ class SubprocessRegistry:
         }
         if ANTHROPIC_BASE_URL:
             init_config["baseURL"] = ANTHROPIC_BASE_URL
+        # Default toolPreset to "core" if not provided
+        init_config["toolPreset"] = (config or {}).get("toolPreset", "core")
         if config:
             init_config.update(config)
         await client.call("init", {"config": init_config})

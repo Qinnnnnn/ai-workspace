@@ -21,7 +21,9 @@ export interface JsonRpcNotification {
 }
 
 export interface InitParams {
-  config: AgentConfig
+  config: AgentConfig & {
+    toolPreset?: 'core' | 'extended' | 'all'
+  }
 }
 
 export interface SendParams {
