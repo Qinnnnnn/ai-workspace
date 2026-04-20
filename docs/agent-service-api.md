@@ -38,6 +38,9 @@ http://localhost:8000
     "tools": ["Bash", "FileRead", "FileWrite"],
     "toolPreset": "core",
     "systemPrompt": "你是一个有帮助的助手"
+  },
+  "toolPermissions": {
+    "Bash": "deny"
   }
 }
 ```
@@ -55,22 +58,85 @@ http://localhost:8000
 | 字段 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
 | `model` | string | `claude-sonnet-4-6` | Claude 模型 |
+| `apiKey` | string | - | API 密钥（通常用环境变量） |
+| `baseURL` | string | - | API 端点 |
+| `provider` | string | `anthropic` | 提供商：`anthropic`、`bedrock` |
+| `awsRegion` | string | - | AWS 区域（provider=bedrock 时） |
+| `fallbackModel` | string | - | 备用模型 |
 | `maxTurns` | number | - | 最大对话轮数 |
-| `tools` | string[] | `coreTools()` | 启用的工具列表 |
-| `toolPreset` | string | `core` | 工具预设：`core`、`extended`、`all` |
-| `toolPermissions` | Record<string, 'allow'\\| 'deny'\\| 'ask'> | `{}` | 工具权限规则 |
-| `mcpServers` | McpServerConfig[] | `[]` | MCP 服务器配置 (WIP) |
-| `systemPrompt` | string | - | 系统提示词 |
-| `overrideSystemPrompt` | string | - | 完全替换默认系统提示词 |
-| `appendSystemPrompt` | string | - | 追加到系统提示词末尾 |
-| `maxOutputTokens` | number | - | 最大输出 token 数 |
 | `thinkingConfig` | string | - | `adaptive` 或 `disabled` |
+| `maxOutputTokens` | number | - | 最大输出 token 数 |
+| `maxOutputRecoveryAttempts` | number | - | 输出恢复重试次数 |
+| `toolPreset` | string | `core` | 工具预设：`core`、`extended`、`all` |
+| `tools` | unknown[] | `coreTools()` | 启用的工具列表 |
+| `toolResultBudget` | boolean | - | 工具结果预算 |
+| `streamingToolExecution` | boolean | - | 流式工具执行 |
+| `systemPrompt` | string | - | 系统提示词 |
+| `identity` | string | - | 身份标识 |
+| `language` | string | - | 首选语言 |
+| `overrideSystemPrompt` | string | - | 完全替换系统提示词 |
+| `appendSystemPrompt` | string | - | 追加到系统提示词末尾 |
+| `mcpServers` | MCPServerConfig[] | `[]` | MCP 服务器配置 (WIP) |
+| `persistence` | object | - | 持久化配置 |
+| `memory` | object | - | 记忆配置 |
+| `autoCompact` | boolean | - | 自动压缩 |
+| `autoLoadInstructions` | boolean | - | 自动加载指令 |
+| `maxOutputTokensCap` | boolean | - | 输出 token 上限 |
+
+#### persistence 配置
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `enabled` | boolean | 启用持久化 |
+| `storageDir` | string | 存储目录 |
+| `resumeSessionId` | string | 恢复的 session ID |
+
+#### memory 配置
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `memoryDir` | string | 记忆目录 |
+| `autoLoad` | boolean | 自动加载记忆 |
+| `extractStrategy` | string \\| object | 提取策略：`disabled`、`auto` 或 `{interval: number}` |
+| `extractMaxTurns` | number | 提取最大轮数 |
+| `useForkedAgent` | boolean | 使用 fork 代理 |
+
+#### MCPServerConfig 配置 (WIP)
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `name` | string | 服务器名称 |
+| `transport` | string | 传输类型：`stdio`、`sse`、`http` |
+| `command` | string | 启动命令 |
+| `args` | string[] | 命令参数 |
+| `env` | object | 环境变量 |
+| `url` | string | 服务器 URL（transport=sse/http 时） |
+| `headers` | object | 请求头 |
+
+#### toolPermissions 字段说明
+
+| 字段 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `toolPermissions` | Record<string, 'allow' \\| 'deny' \\| 'ask'> | `{}` | 工具权限规则 |
 
 #### hooks 字段说明
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| `hooks` | string[] | 注册的 hook 类型：`onPreToolUse`、`onTurnEnd` 等 (WIP) |
+| `hooks` | string[] | 注册的 hook 类型 (WIP) |
+
+#### 可用的 Hook 类型 (WIP)
+
+| 类型 | 触发时机 |
+|------|----------|
+| `onPreToolUse` | 工具执行前 |
+| `onPostToolUse` | 工具执行后 |
+| `onTurnStart` | 对话轮开始 |
+| `onTurnEnd` | 对话轮结束 |
+| `onError` | 发生错误 |
+| `onCompact` | 压缩时 |
+| `onMaxTurns` | 达到最大轮数 |
+| `onSessionStart` | Session 启动时 |
 
 ---
 
@@ -225,7 +291,7 @@ data: {"type":"result","text":"...","usage":{...},"stopReason":"end_turn"}
 
 ## Hook WebSocket API
 
-> **⚠️ WIP** - 此接口尚未稳定，等待进一步开发。
+> **WIP** - 此接口尚未稳定，等待进一步开发。
 
 客户端通过 WebSocket 接收 hook 事件并响应。
 
@@ -332,6 +398,7 @@ Session 不存在时拒绝连接。
 | `key` | string | - | 记忆键名 |
 | `content` | string | - | 记忆内容 |
 | `type` | string | `general` | 记忆类型 |
+| `description` | string | `key` | 记忆描述 |
 
 ---
 
@@ -343,13 +410,14 @@ Session 不存在时拒绝连接。
 
 ```json
 {
-  "key": "project-context",
-  "content": "This is a Python ML project",
+  "name": "project-context",
+  "description": "project-context",
   "type": "context",
-  "createdAt": "2026-04-20T10:00:00.000Z",
-  "updatedAt": "2026-04-20T10:00:00.000Z"
+  "content": "This is a Python ML project"
 }
 ```
+
+**注意**: 实际返回字段为 `name`/`description`，与 `key` 不同。
 
 #### 错误响应: `404 Not Found`
 
@@ -369,7 +437,7 @@ Session 不存在时拒绝连接。
 
 | 参数 | 说明 |
 |------|------|
-| `pattern` | glob 模式匹配键名 |
+| `pattern` | 前缀匹配（匹配 `name` 字段） |
 
 **响应**: `200 OK`
 
@@ -377,15 +445,16 @@ Session 不存在时拒绝连接。
 {
   "memories": [
     {
-      "key": "project-context",
-      "content": "This is a Python ML project",
-      "type": "context"
+      "name": "project-context",
+      "description": "project-context",
+      "type": "context",
+      "content": "This is a Python ML project"
     }
   ]
 }
 ```
 
-**示例**: `GET /api/v1/memory?pattern=project-*`
+**示例**: `GET /api/v1/memory?pattern=project-`
 
 ---
 
@@ -415,7 +484,7 @@ Session 不存在时拒绝连接。
 
 ## MCP API
 
-> **⚠️ WIP** - 此接口尚未稳定，等待进一步开发。
+> **WIP** - 此接口尚未稳定，等待进一步开发。
 
 MCP (Model Context Protocol) 服务器生命周期管理。
 
@@ -562,12 +631,10 @@ Session 创建时可配置工具权限规则。
 
 ```json
 {
-  "config": {
-    "toolPermissions": {
-      "Bash": "deny",
-      "FileWrite": "ask",
-      "FileRead": "allow"
-    }
+  "toolPermissions": {
+    "Bash": "deny",
+    "FileWrite": "ask",
+    "FileRead": "allow"
   }
 }
 ```
@@ -608,7 +675,7 @@ Session 创建时可指定工具预设。
 
 ```json
 {
-  "error": "Invalid tool preset: invalid"
+  "error": "Invalid tool preset. Must be \"core\", \"extended\", or \"all\"."
 }
 ```
 
