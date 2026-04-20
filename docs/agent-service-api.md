@@ -37,22 +37,8 @@ http://localhost:8000
     "maxTurns": 50,
     "tools": ["Bash", "FileRead", "FileWrite"],
     "toolPreset": "core",
-    "toolPermissions": {
-      "Bash": "ask",
-      "FileWrite": "allow"
-    },
-    "mcpServers": [
-      {
-        "serverId": "filesystem",
-        "config": {
-          "command": "npx",
-          "args": ["-y", "@modelcontextprotocol/server-filesystem", "/workspace"]
-        }
-      }
-    ],
     "systemPrompt": "你是一个有帮助的助手"
-  },
-  "hooks": ["onPreToolUse", "onTurnEnd"]
+  }
 }
 ```
 
@@ -72,8 +58,8 @@ http://localhost:8000
 | `maxTurns` | number | - | 最大对话轮数 |
 | `tools` | string[] | `coreTools()` | 启用的工具列表 |
 | `toolPreset` | string | `core` | 工具预设：`core`、`extended`、`all` |
-| `toolPermissions` | Record<string, 'allow'\\| 'deny'\\| 'ask'> | `{}` | 工具权限规则 |
-| `mcpServers` | McpServerConfig[] | `[]` | MCP 服务器配置 |
+| `toolPermissions` | Record<string, 'allow'\\| 'deny'\\| 'ask'> | `{}` | 工具权限规则 (WIP) |
+| `mcpServers` | McpServerConfig[] | `[]` | MCP 服务器配置 (WIP) |
 | `systemPrompt` | string | - | 系统提示词 |
 | `overrideSystemPrompt` | string | - | 完全替换默认系统提示词 |
 | `appendSystemPrompt` | string | - | 追加到系统提示词末尾 |
@@ -84,7 +70,7 @@ http://localhost:8000
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| `hooks` | string[] | 注册的 hook 类型：`onPreToolUse`、`onTurnEnd` 等 |
+| `hooks` | string[] | 注册的 hook 类型：`onPreToolUse`、`onTurnEnd` 等 (WIP) |
 
 ---
 
@@ -235,7 +221,11 @@ data: {"type":"result","text":"...","usage":{...},"stopReason":"end_turn"}
 
 ---
 
+---
+
 ## Hook WebSocket API
+
+> **⚠️ WIP** - 此接口尚未稳定，等待进一步开发。
 
 客户端通过 WebSocket 接收 hook 事件并响应。
 
@@ -421,7 +411,11 @@ Session 不存在时拒绝连接。
 
 ---
 
+---
+
 ## MCP API
+
+> **⚠️ WIP** - 此接口尚未稳定，等待进一步开发。
 
 MCP (Model Context Protocol) 服务器生命周期管理。
 
@@ -553,6 +547,8 @@ MCP (Model Context Protocol) 服务器生命周期管理。
 ---
 
 ## 工具权限
+
+> **⚠️ WIP** - 此功能尚未稳定，等待进一步开发。
 
 Session 创建时可配置工具权限规则。
 
