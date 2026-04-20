@@ -12,11 +12,46 @@ http://localhost:8000
 
 | 变量 | 必填 | 默认值 | 说明 |
 |------|------|--------|------|
-| `ANTHROPIC_AUTH_TOKEN` | 是 | - | Anthropic API 密钥 |
+| `ANTHROPIC_AUTH_TOKEN` | **是** | - | Anthropic API 密钥，**未设置则服务无法启动** |
 | `ANTHROPIC_BASE_URL` | 否 | `https://api.anthropic.com` | API 端点 |
-| `ANTHROPIC_MODEL` | 否 | `claude-sonnet-4-6` | 默认模型 |
+| `ANTHROPIC_MODEL` | 否 | `claude-sonnet-4-6` | 默认模型，用于 config.model 未指定时 |
 | `LOG_LEVEL` | 否 | `INFO` | 日志级别 |
 | `AGENT_SERVICE_PORT` | 否 | `8000` | 服务端口 |
+
+---
+
+## 重要行为说明
+
+### 1. 工具配置互斥
+
+`toolPreset` 和 `tools` **不可同时生效**，同时传时 `tools` 优先，`toolPreset` 被忽略。
+
+```json
+// 错误用法：toolPreset 会被忽略
+{"config": {"toolPreset": "extended", "tools": [...]}}
+
+// 正确用法：二选一
+{"config": {"toolPreset": "extended"}}
+{"config": {"tools": [...]}}
+```
+
+### 2. 模型优先级
+
+```
+config.model > ANTHROPIC_MODEL 环境变量 > 默认值 claude-sonnet-4-6
+```
+
+### 3. 工具权限默认值
+
+未在 `toolPermissions` 中指定的工具，**默认行为是 `ask`**（需要客户端决策）。
+
+### 4. Session 404 处理
+
+访问不存在的 session 时，所有接口统一返回 `404 Not Found`。
+
+### 5. Memory SDK 限制
+
+codenano SDK 的 Memory 存储为**本地文件系统**，接口返回字段为 SDK 定义的 `name`/`description`，与请求的 `key` 不同。
 
 ---
 
@@ -57,7 +92,9 @@ http://localhost:8000
 
 | 字段 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
-| `model` | string | `claude-sonnet-4-6` | Claude 模型 |
+| `model` | string | `claude-sonnet-4-6` | Claude 模型，优先级：config.model > ANTHROPIC_MODEL 环境变量 > 默认值 |
+
+> **模型优先级**: `config.model` > `ANTHROPIC_MODEL` 环境变量 > 默认值 `claude-sonnet-4-6`
 | `apiKey` | string | - | API 密钥（通常用环境变量） |
 | `baseURL` | string | - | API 端点 |
 | `provider` | string | `anthropic` | 提供商：`anthropic`、`bedrock` |
@@ -67,8 +104,13 @@ http://localhost:8000
 | `thinkingConfig` | string | - | `adaptive` 或 `disabled` |
 | `maxOutputTokens` | number | - | 最大输出 token 数 |
 | `maxOutputRecoveryAttempts` | number | - | 输出恢复重试次数 |
-| `toolPreset` | string | `core` | 工具预设：`core`、`extended`、`all` |
-| `tools` | unknown[] | `coreTools()` | 启用的工具列表 |
+| `toolPreset` | string | `core` | 工具预设：`core`、`extended`、`all`，与 `tools` 二选一 |
+| `tools` | unknown[] | `coreTools()` | 自定义工具列表，与 `toolPreset` 二选一，优先于 `toolPreset` |
+
+> **重要**: `tools` 和 `toolPreset` 互斥。**同时传两个时，`tools` 生效，`toolPreset` 被忽略**。
+> - 只需要预设工具：用 `toolPreset`
+> - 需要自定义工具：用 `tools`
+> - 通常建议只使用 `toolPreset`
 | `toolResultBudget` | boolean | - | 工具结果预算 |
 | `streamingToolExecution` | boolean | - | 流式工具执行 |
 | `systemPrompt` | string | - | 系统提示词 |
@@ -117,7 +159,7 @@ http://localhost:8000
 
 | 字段 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
-| `toolPermissions` | Record<string, 'allow' \\| 'deny' \\| 'ask'> | `{}` | 工具权限规则 |
+| `toolPermissions` | Record<string, 'allow' \\| 'deny' \\| 'ask'> | `{}` | 工具权限规则，未指定的工具默认 `ask` |
 
 #### hooks 字段说明
 
@@ -417,7 +459,7 @@ Session 不存在时拒绝连接。
 }
 ```
 
-**注意**: 实际返回字段为 `name`/`description`，与 `key` 不同。
+**注意**: 实际返回字段为 `name`/`description`，与请求的 `key` 不同。这是 SDK 行为，agent-service 无权修改。
 
 #### 错误响应: `404 Not Found`
 
