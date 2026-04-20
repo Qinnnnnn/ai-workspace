@@ -17,6 +17,7 @@ http://localhost:8000
 | `ANTHROPIC_MODEL` | 否 | `claude-sonnet-4-6` | 默认模型，用于 config.model 未指定时 |
 | `LOG_LEVEL` | 否 | `INFO` | 日志级别 |
 | `AGENT_SERVICE_PORT` | 否 | `8000` | 服务端口 |
+| `SB_TTL_MINUTES` | 否 | `30` | Session 存活时间（分钟） |
 
 ---
 
@@ -71,14 +72,16 @@ codenano SDK 的 Memory 存储为**本地文件系统**，接口返回字段为 
     "model": "claude-sonnet-4-6",
     "maxTurns": 50,
     "tools": ["Bash", "FileRead", "FileWrite"],
-    "toolPreset": "core",
-    "systemPrompt": "你是一个有帮助的助手"
+    "toolPreset": "core"
   },
+  "hooks": ["onPreToolUse", "onTurnEnd"],
   "toolPermissions": {
     "Bash": "deny"
   }
 }
 ```
+
+> **注意**: `systemPrompt` 不是有效字段，请使用 `overrideSystemPrompt` 或 `appendSystemPrompt`
 
 **响应**: `201 Created`
 
@@ -118,7 +121,7 @@ codenano SDK 的 Memory 存储为**本地文件系统**，接口返回字段为 
 | `language` | string | - | 首选语言 |
 | `overrideSystemPrompt` | string | - | 完全替换系统提示词 |
 | `appendSystemPrompt` | string | - | 追加到系统提示词末尾 |
-| `mcpServers` | MCPServerConfig[] | `[]` | MCP 服务器配置 (WIP) |
+| `mcpServers` | MCPServerConfig[] | `[]` | MCP 服务器配置 |
 | `persistence` | object | - | 持久化配置 |
 | `memory` | object | - | 记忆配置 |
 | `autoCompact` | boolean | - | 自动压缩 |
@@ -143,7 +146,7 @@ codenano SDK 的 Memory 存储为**本地文件系统**，接口返回字段为 
 | `extractMaxTurns` | number | 提取最大轮数 |
 | `useForkedAgent` | boolean | 使用 fork 代理 |
 
-#### MCPServerConfig 配置 (WIP)
+#### MCPServerConfig 配置
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
@@ -165,9 +168,9 @@ codenano SDK 的 Memory 存储为**本地文件系统**，接口返回字段为 
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| `hooks` | string[] | 注册的 hook 类型 (WIP) |
+| `hooks` | `HookType[]` | 订阅的 hook 类型，见 [Hook WebSocket API](#hook-websocket-api) |
 
-#### 可用的 Hook 类型 (WIP)
+#### 可用的 Hook 类型
 
 | 类型 | 触发时机 |
 |------|----------|
@@ -291,23 +294,12 @@ data: {"type":"result","text":"...","usage":{...},"stopReason":"end_turn"}
 
 **响应**: `200 OK`
 
+> **注意**: History 在沙箱模式下不可用，始终返回空数组。
+
 ```json
 {
-  "history": [
-    {
-      "role": "user",
-      "content": "Hello"
-    },
-    {
-      "role": "assistant",
-      "content": [
-        {
-          "type": "text",
-          "text": "Hello! How can I help you?"
-        }
-      ]
-    }
-  ]
+  "history": [],
+  "message": "History not available in sandboxed mode"
 }
 ```
 
@@ -332,8 +324,6 @@ data: {"type":"result","text":"...","usage":{...},"stopReason":"end_turn"}
 ---
 
 ## Hook WebSocket API
-
-> **WIP** - 此接口尚未稳定，等待进一步开发。
 
 客户端通过 WebSocket 接收 hook 事件并响应。
 
@@ -402,6 +392,20 @@ const ws = new WebSocket('ws://localhost:8000/ws/sessions/550e8400-e29b-41d4-a71
 #### Hook 超时
 
 客户端未在 30 秒内响应，决策默认为 `allow`。
+
+#### Ping/Pong
+
+客户端可发送 ping 保持连接活跃：
+
+```json
+{"type": "ping"}
+```
+
+服务端响应：
+
+```json
+{"type": "pong"}
+```
 
 #### 错误响应: `404 Not Found`
 
@@ -577,14 +581,19 @@ MCP (Model Context Protocol) 服务器生命周期管理。
 {
   "tools": [
     {
-      "name": "mcp__server__read_file",
-      "description": "Read a file from the filesystem",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "path": {"type": "string"}
+      "serverId": "filesystem",
+      "tools": [
+        {
+          "name": "mcp__server__read_file",
+          "description": "Read a file from the filesystem",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "path": {"type": "string"}
+            }
+          }
         }
-      }
+      ]
     }
   ]
 }
