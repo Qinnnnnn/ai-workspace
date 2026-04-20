@@ -13,8 +13,8 @@
  *   Out: { type: 'ready' }
  */
 
-import { createAgent } from '../../codenano/src/index.js'
-import { coreTools, extendedTools, allTools } from '../../codenano/src/tools/index.js'
+import { createAgent } from '../../codenano/dist/index.js'
+import { coreTools, extendedTools, allTools } from '../../codenano/dist/tools/index.js'
 
 let agent = null
 let session = null

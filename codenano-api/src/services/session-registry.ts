@@ -1,10 +1,14 @@
 import { spawn, ChildProcess, execSync } from 'child_process'
 import path from 'path'
+import { fileURLToPath } from 'url'
 import os from 'os'
 import fs from 'fs'
 import type { ToolPermission, HookType, ServiceAgentConfig, MCPServerConfig, StreamEvent } from '../types/index.js'
 import { HookCoordinator } from './hook-coordinator.js'
 import type { MCPConnection } from 'codenano'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 const SB_TTL_MINUTES = parseInt(process.env.SB_TTL_MINUTES ?? '30', 10)
 const CLEANUP_INTERVAL_MS = 60000
@@ -32,6 +36,9 @@ interface SessionEntry {
   eventQueue: StreamEvent[]
   currentResolve: ((event: StreamEvent) => void) | null
   pendingToolUseId: string | null
+  readyResolve?: () => void
+  readyReject?: (err: Error) => void
+  readySettled?: boolean
 }
 
 export class SessionRegistry {
@@ -110,7 +117,7 @@ export class SessionRegistry {
       memory: config.memory,
       toolPreset: config.toolPreset,
       tools: config.tools,
-      workspace: '/',
+      workspace: '/workspace',
     }
 
     const hookCoordinator = hooks.length > 0 ? new HookCoordinator() : null
@@ -134,16 +141,124 @@ export class SessionRegistry {
     this.sessions.set(sessionId, entry)
 
     const agentWrapperPath = path.join(__dirname, '..', 'agent-wrapper.js')
-    const childProcess = spawn('bwrap', [
-      '--bind', workspace, '/',
+    const nodePath = process.execPath
+    const nodeDir = path.dirname(nodePath)
+    const codenanoPath = path.resolve(__dirname, '..', '..', 'codenano')
+    const codenanoDir = path.dirname(codenanoPath)
+
+    const bwrapArgs = [
+      '--bind', workspace, '/workspace',
+      '--ro-bind', nodeDir, nodeDir,
+      '--ro-bind', codenanoDir, codenanoDir,
+      '--ro-bind', '/lib64', '/lib64',
+      '--ro-bind', '/usr/lib64', '/usr/lib64',
       '--ro-bind', '/etc/resolv.conf', '/etc/resolv.conf',
       '--tmpfs', '/tmp',
-      '--exec', 'node', agentWrapperPath,
-    ], {
+      '--',
+      nodePath, agentWrapperPath,
+    ]
+
+    let childProcess = spawn('bwrap', bwrapArgs, {
       stdio: ['pipe', 'pipe', 'pipe'],
     })
 
+    let usingSandbox = true
+
     entry.process = childProcess
+
+    // Handle errors from bwrap process (e.g., execvp failed)
+    childProcess.on('error', (err) => {
+      console.error(`[agent-subprocess ${sessionId}] bwrap error:`, err.message)
+      // If bwrap fails before ready, trigger fallback
+      if (entry.readyResolve && !entry.readySettled) {
+        triggerFallback()
+      }
+    })
+
+    const triggerFallback = () => {
+      console.log(`[agent-subprocess ${sessionId}] bwrap failed, retrying without sandbox`)
+      usingSandbox = false
+
+      // Copy codenano-api into workspace
+      const apiSrc = path.resolve(__dirname, '..', '..')
+      const apiDest = path.join(workspace, 'codenano-api')
+      fs.cpSync(apiSrc, apiDest, { recursive: true })
+
+      // Copy codenano into workspace (agent-wrapper imports ../../codenano/...)
+      const codenanoSrc = path.resolve(__dirname, '..', '..', '..', 'codenano')
+      const codenanoDest = path.join(workspace, 'codenano')
+      fs.cpSync(codenanoSrc, codenanoDest, { recursive: true })
+
+      // Use agent-wrapper from the project copy inside workspace
+      const workspaceAgentWrapper = path.join(apiDest, 'dist', 'agent-wrapper.js')
+
+      childProcess = spawn(nodePath, [workspaceAgentWrapper], {
+        stdio: ['pipe', 'pipe', 'pipe'],
+        env: { ...process.env, CODENANO_WORKSPACE: workspace },
+      })
+      entry.process = childProcess
+
+      // Re-setup handlers for new process
+      childProcess.stdout?.setEncoding('utf8')
+      let buffer = ''
+      childProcess.stdout?.on('data', (data: string) => {
+        buffer += data
+        const lines = buffer.split('\n')
+        buffer = lines.pop() ?? ''
+        for (const line of lines) {
+          if (line.trim()) {
+            this.handleSubprocessMessage(sessionId, line)
+          }
+        }
+      })
+
+      childProcess.stderr?.on('data', (data: string) => {
+        console.error(`[agent-subprocess ${sessionId}] stderr:`, data.toString())
+      })
+
+      childProcess.on('exit', (code, signal) => {
+        console.log(`[agent-subprocess ${sessionId}] exited with code ${code}, signal ${signal}`)
+        if (entry.readyReject) {
+          entry.readyReject(new Error(`Subprocess exited prematurely with code ${code}`))
+        }
+        this.sessions.delete(sessionId)
+      })
+
+      childProcess.on('error', (err) => {
+        console.error(`[agent-subprocess ${sessionId}] error:`, err)
+        if (entry.readyReject) {
+          entry.readyReject(err)
+        }
+      })
+
+      this.sendToSubprocess(sessionId, {
+        type: 'init',
+        config: subprocessConfig,
+        sessionId,
+      })
+    }
+
+    // Wait for subprocess to be ready before returning
+    const readyPromise = new Promise<void>((resolve, reject) => {
+      entry.readyResolve = resolve
+      entry.readyReject = reject
+
+      // Timeout after 30 seconds
+      const timeout = setTimeout(() => {
+        reject(new Error('Subprocess failed to start within 30 seconds'))
+      }, 30000)
+
+      entry.readyResolve = () => {
+        clearTimeout(timeout)
+        entry.readySettled = true
+        resolve()
+      }
+      entry.readyReject = (err: Error) => {
+        clearTimeout(timeout)
+        entry.readySettled = true
+        reject(err)
+      }
+    })
 
     childProcess.stdout?.setEncoding('utf8')
     let buffer = ''
@@ -165,11 +280,25 @@ export class SessionRegistry {
 
     childProcess.on('exit', (code, signal) => {
       console.log(`[agent-subprocess ${sessionId}] exited with code ${code}, signal ${signal}`)
+
+      // If bwrap fails before ready is sent, retry without sandbox
+      if (usingSandbox && entry.readyResolve && !entry.readySettled) {
+        triggerFallback()
+        return
+      }
+
+      // Normal exit after ready - clean up
+      if (entry.readyReject) {
+        entry.readyReject(new Error(`Subprocess exited prematurely with code ${code}`))
+      }
       this.sessions.delete(sessionId)
     })
 
     childProcess.on('error', (err) => {
       console.error(`[agent-subprocess ${sessionId}] error:`, err)
+      if (entry.readyReject) {
+        entry.readyReject(err)
+      }
     })
 
     this.sendToSubprocess(sessionId, {
@@ -177,6 +306,9 @@ export class SessionRegistry {
       config: subprocessConfig,
       sessionId,
     })
+
+    // Wait for ready before returning
+    await readyPromise
 
     return sessionId
   }
@@ -240,6 +372,10 @@ export class SessionRegistry {
           console.error(`[agent-subprocess ${sessionId}] error:`, msg.error)
           this.enqueueEvent(entry, { type: 'error', error: msg.error } as unknown as StreamEvent)
           break
+
+        case 'ready':
+          entry.readyResolve?.()
+          break
       }
     } catch (err) {
       console.error(`[agent-subprocess ${sessionId}] failed to parse message:`, data, err)
@@ -297,6 +433,9 @@ export class SessionRegistry {
     }
 
     entry.lastActivity = new Date()
+
+    // Send the message to subprocess
+    this.sendToSubprocess(sessionId, { type: 'message', prompt, stream })
 
     if (!stream) {
       const events: StreamEvent[] = []
