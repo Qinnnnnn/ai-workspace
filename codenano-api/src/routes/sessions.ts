@@ -2,11 +2,9 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 import { loadSession, listSessions as codenanoListSessions, getSessionStorageDir } from 'codenano'
 import { createAgentInstance } from '../agent.js'
 import { getSessionRegistry, type SessionEntry } from '../services/session-registry.js'
-import { HookCoordinator } from '../hooks/hook-coordinator.js'
 import type {
   SessionCreateBody,
   SendMessageBody,
-  HookType,
   ToolPermission,
 } from '../types/index.js'
 import type { Agent, Session, ToolDef } from 'codenano'
@@ -23,22 +21,25 @@ export async function sessionsRoutes(fastify: FastifyInstance): Promise<void> {
   // Create session with direct library call
   fastify.post('/api/v1/sessions', async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as SessionCreateBody
-    const { config, hooks = [], toolPermissions = {} } = body
+    const { config = {}, toolPermissions = {}, resumeSessionId } = body
 
     if (config.toolPreset && !['core', 'extended', 'all'].includes(config.toolPreset)) {
       return reply.status(400).send({ error: 'Invalid tool preset. Must be "core", "extended", or "all".' })
-    }
-
-    // Create hook coordinator if hooks are registered
-    const hookCoordinator = hooks.length > 0 ? new HookCoordinator() : null
-    if (hookCoordinator) {
-      hookCoordinator.registerHooks(hooks as HookType[])
     }
 
     // Set workspace environment variable (if provided in config)
     const workspace = (config as any).workspace
     if (workspace) {
       process.env.CODENANO_WORKSPACE = workspace
+    }
+
+    // Build persistence config
+    const persistence: { enabled: boolean; storageDir?: string; resumeSessionId?: string } = {
+      enabled: true,
+      storageDir: getSessionStorageDir(),
+    }
+    if (resumeSessionId) {
+      persistence.resumeSessionId = resumeSessionId
     }
 
     // Build agent config (excluding workspace which is handled separately)
@@ -65,7 +66,7 @@ export async function sessionsRoutes(fastify: FastifyInstance): Promise<void> {
       maxOutputTokensCap: configWithoutWorkspace.maxOutputTokensCap,
       streamingToolExecution: configWithoutWorkspace.streamingToolExecution,
       mcpServers: configWithoutWorkspace.mcpServers,
-      persistence: configWithoutWorkspace.persistence,
+      persistence,
       memory: configWithoutWorkspace.memory,
       toolPreset: configWithoutWorkspace.toolPreset,
       tools: configWithoutWorkspace.tools as ToolDef[],
@@ -75,17 +76,15 @@ export async function sessionsRoutes(fastify: FastifyInstance): Promise<void> {
     const agent = createAgentInstance({
       ...agentConfig,
       toolPermissions: toolPermissions as Record<string, ToolPermission>,
-      hookCoordinator,
     })
 
-    // Create session
-    const sessionId = crypto.randomUUID()
+    // Create session - use resumeSessionId if provided, otherwise generate new ID
+    const sessionId = resumeSessionId ?? crypto.randomUUID()
     const session = agent.session(sessionId)
 
     // Register in registry
     registry.register(sessionId, agent, session, {
       toolPermissions: toolPermissions as Record<string, ToolPermission>,
-      hookCoordinator,
     })
 
     return reply.send({ sessionId })

@@ -1,6 +1,6 @@
 ## Purpose
 
-Node.js Fastify HTTP service that directly wraps the codenano SDK. Provides session management, message streaming (SSE), internal tool permissions, and exposes the full AgentConfig surface. No external hook coordination - agents operate autonomously.
+Node.js Fastify HTTP service that directly wraps the codenano SDK. Provides session management, message streaming (SSE), and exposes the full AgentConfig surface. No external hook coordination - agents operate autonomously.
 
 ## ADDED Requirements
 
@@ -24,7 +24,7 @@ The service SHALL accept an optional `resumeSessionId` in the session creation r
 ### Requirement: Session creation with full AgentConfig
 
 **FROM:**
-> The service SHALL accept a `POST /api/v1/sessions` request with a body containing `config` (AgentConfig) and `hooks` (optional array of hook names to register). The service SHALL create an Agent via `createAgent(config)` and a Session via `agent.session()`, returning the session ID.
+> The service SHALL accept a `POST /api/v1/sessions` request with a body containing `config` (AgentConfig) and `hooks` (optional array of hook names to register).
 
 **TO:**
 > The service SHALL accept a `POST /api/v1/sessions` request with a body containing `config` (AgentConfig), `toolPermissions`, and optional `resumeSessionId`. No hooks are registered - agents run fully autonomously.
@@ -32,11 +32,6 @@ The service SHALL accept an optional `resumeSessionId` in the session creation r
 #### Scenario: Create session with minimal config
 - **WHEN** caller sends `POST /api/v1/sessions` with `{"config": {"model": "claude-sonnet-4-6"}}`
 - **THEN** a new session is created with a unique session ID
-- **THEN** the response is `{"sessionId": "<uuid>"}`
-
-#### Scenario: Create session with full AgentConfig
-- **WHEN** caller sends `POST /api/v1/sessions` with `{"config": {"model": "...", "maxTurns": 50, "mcpServers": [...]}, "toolPermissions": {"Bash": "deny"}}`
-- **THEN** the agent is created with all provided config options
 - **THEN** the response is `{"sessionId": "<uuid>"}`
 
 #### Scenario: Create session with toolPreset
@@ -47,20 +42,6 @@ The service SHALL accept an optional `resumeSessionId` in the session creation r
 - **WHEN** caller sends `POST /api/v1/sessions` with `{"config": {"mcpServers": [...]}}`
 - **THEN** the agent connects to the specified MCP servers
 
-### Requirement: Service graceful shutdown
-
-**FROM:**
-> The service SHALL handle SIGTERM/SIGINT gracefully: stop accepting new requests, close all WebSocket connections, abort all sessions, disconnect all MCP servers, then exit.
-
-**TO:**
-> The service SHALL handle SIGTERM/SIGINT gracefully: stop accepting new requests, abort all sessions, then exit.
-
-#### Scenario: Graceful shutdown on SIGTERM
-- **WHEN** service receives SIGTERM
-- **THEN** HTTP server stops accepting new connections
-- **THEN** all active sessions are aborted
-- **THEN** process exits with code 0
-
 ## REMOVED Requirements
 
 ### Requirement: Hook WebSocket endpoint
@@ -68,3 +49,9 @@ The service SHALL accept an optional `resumeSessionId` in the session creation r
 **Reason**: Replaced by pure autonomous agent operation. No external hook coordination is provided.
 
 **Migration**: Remove all WebSocket hook client implementations. Agents operate without external hook intervention.
+
+### Requirement: Hook registration via session creation
+
+**Reason**: Hooks are not exposed in this service model.
+
+**Migration**: Remove all `hooks` array from session creation requests.

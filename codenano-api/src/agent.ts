@@ -1,6 +1,5 @@
-import { createAgent, coreTools, extendedTools, allTools, defineTool } from 'codenano'
-import type { Agent, ToolDef, AgentConfig, HookContext, PreToolUseResult, PostToolUseHookFn, StopHookFn, StopHookResult, MessageParam } from 'codenano'
-import { HookCoordinator } from './hooks/hook-coordinator.js'
+import { createAgent, coreTools, extendedTools, allTools } from 'codenano'
+import type { Agent, ToolDef, AgentConfig, PermissionDecision } from 'codenano'
 
 const TOOL_PRESETS = {
   core: coreTools,
@@ -13,8 +12,7 @@ export type ToolPreset = keyof typeof TOOL_PRESETS
 export interface AgentFactoryConfig extends Omit<AgentConfig, 'tools'> {
   toolPreset?: ToolPreset
   tools?: ToolDef[]
-  toolPermissions?: Record<string, 'allow' | 'deny' | 'ask'>
-  hookCoordinator?: HookCoordinator | null
+  toolPermissions?: Record<string, 'allow' | 'deny'>
 }
 
 /**
@@ -22,7 +20,7 @@ export interface AgentFactoryConfig extends Omit<AgentConfig, 'tools'> {
  * Replaces subprocess spawning with in-process agent creation.
  */
 export function createAgentInstance(config: AgentFactoryConfig): Agent {
-  const { toolPreset = 'core', tools: customTools, toolPermissions, hookCoordinator, ...agentConfig } = config
+  const { toolPreset = 'core', tools: customTools, toolPermissions, ...agentConfig } = config
 
   // Resolve tools - custom tools take precedence
   let tools: ToolDef[] = customTools ?? []
@@ -33,55 +31,17 @@ export function createAgentInstance(config: AgentFactoryConfig): Agent {
     tools = presetFn()
   }
 
-  // Build agent config with hooks
+  // Build agent config with tool permission check
   const finalConfig: AgentConfig = {
     ...agentConfig,
     tools,
-  }
-
-  // Wire up hook callbacks
-  if (hookCoordinator) {
-    finalConfig.onPreToolUse = async (context: HookContext & { toolName: string; toolInput: Record<string, unknown>; toolUseId: string }): Promise<PreToolUseResult> => {
-      const { toolName, toolInput } = context
-
-      // Check tool permission
-      const permission = toolPermissions?.[toolName] ?? 'ask'
-
+    canUseTool: (toolName: string): PermissionDecision => {
+      const permission = toolPermissions?.[toolName] ?? 'allow'
       if (permission === 'deny') {
-        return { block: 'Tool blocked: denied by policy' }
+        return { behavior: 'deny', message: 'Tool blocked: denied by policy' }
       }
-
-      if (permission === 'ask' && hookCoordinator.isHookRegistered('onPreToolUse')) {
-        const decision = await hookCoordinator.emitAndWait('onPreToolUse', {
-          toolName,
-          toolInput,
-        })
-
-        if (decision.behavior === 'deny') {
-          return { block: decision.message ?? 'Tool blocked by hook' }
-        }
-      }
-
-      return undefined // Allow
-    }
-
-    finalConfig.onPostToolUse = async (context: HookContext & { toolName: string; toolInput: Record<string, unknown>; toolUseId: string; output: string; isError: boolean }): Promise<void> => {
-      if (hookCoordinator.isHookRegistered('onPostToolUse')) {
-        await hookCoordinator.emitAndWait('onPostToolUse', {
-          toolName: context.toolName,
-          toolInput: context.toolInput,
-          output: context.output,
-          isError: context.isError,
-        })
-      }
-    }
-
-    finalConfig.onTurnEnd = async (context: { messages: readonly MessageParam[]; lastResponse: string }): Promise<StopHookResult> => {
-      if (hookCoordinator.isHookRegistered('onTurnEnd')) {
-        await hookCoordinator.emitAndWait('onTurnEnd', { messages: context.messages })
-      }
-      return {} // Continue normally
-    }
+      return { behavior: 'allow' }
+    },
   }
 
   // Create agent with direct library call
@@ -90,5 +50,4 @@ export function createAgentInstance(config: AgentFactoryConfig): Agent {
   return agent
 }
 
-export { defineTool }
 export type { ToolDef, Agent }

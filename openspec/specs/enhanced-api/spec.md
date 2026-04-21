@@ -83,3 +83,76 @@ The system SHALL expose the skills discovery and loading system:
 #### Scenario: List available skills
 - **WHEN** caller requests `GET /api/v1/skills`
 - **THEN** all skills from configured skills directory are listed
+
+### Requirement: Session management API
+
+The system SHALL provide RESTful session management:
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/v1/sessions` | Create new session |
+| GET | `/api/v1/sessions` | List all sessions |
+| GET | `/api/v1/sessions/:id` | Get session by ID |
+| DELETE | `/api/v1/sessions/:id` | Delete session |
+| POST | `/api/v1/sessions/:id/message` | Send message (SSE streaming) |
+| GET | `/api/v1/sessions/:id/history` | Get message history |
+
+#### Scenario: Create session with custom config
+- **WHEN** caller sends `POST /api/v1/sessions` with config
+- **THEN** a new Agent and Session are created
+- **THEN** session ID is returned in response body
+- **THEN** streaming endpoint is available at `/api/v1/sessions/:id/message`
+
+#### Scenario: Stream messages via SSE
+- **WHEN** caller sends `POST /api/v1/sessions/:id/message` with streaming enabled
+- **THEN** responses are streamed as SSE events
+- **THEN** tool executions trigger `tool_executing` events
+- **THEN** final response triggers `message_complete` event
+
+### Requirement: Memory operations API
+
+The system SHALL provide memory persistence operations:
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/v1/memory` | Save memory |
+| GET | `/api/v1/memory/:key` | Load memory |
+| GET | `/api/v1/memory` | Scan all memories |
+| DELETE | `/api/v1/memory/:key` | Delete memory |
+
+#### Scenario: Save and retrieve memory
+- **WHEN** caller saves memory via `POST /api/v1/memory`
+- **THEN** the memory is persisted to disk
+- **THEN** subsequent `GET /api/v1/memory/:key` returns the value
+
+### Requirement: MCP server management API
+
+The system SHALL allow connecting to MCP servers:
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/v1/mcp/connect` | Connect to MCP server |
+| GET | `/api/v1/mcp/tools` | List available MCP tools |
+| POST | `/api/v1/mcp/tools/call` | Call MCP tool |
+| DELETE | `/api/v1/mcp/:serverId` | Disconnect MCP server |
+
+#### Scenario: Connect MCP server
+- **WHEN** caller sends `POST /api/v1/mcp/connect` with server config
+- **THEN** MCP server is connected
+- **THEN** its tools are available to the agent
+
+### Requirement: Hook WebSocket coordinator
+
+The system SHALL provide WebSocket endpoint for external permission services:
+
+```
+WS /ws/sessions/:id/hooks
+```
+
+External services can connect to receive hook events and respond with permission decisions.
+
+#### Scenario: External permission service
+- **WHEN** agent is about to execute a tool
+- **THEN** hook event is sent over WebSocket
+- **THEN** external service responds with allow/deny
+- **THEN** tool execution proceeds or is blocked

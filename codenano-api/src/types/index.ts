@@ -2,7 +2,7 @@ import type { Agent, Session, StreamEvent } from 'codenano'
 
 export type { Agent, Session, StreamEvent }
 
-export type ToolPermission = 'allow' | 'deny' | 'ask'
+export type ToolPermission = 'allow' | 'deny'
 
 export interface MCPServerConfig {
   name: string
@@ -14,50 +14,17 @@ export interface MCPServerConfig {
   headers?: Record<string, string>
 }
 
-export interface HookCoordinator {
-  registerHooks(hooks: HookType[]): void
-  isHookRegistered(hookType: HookType): boolean
-  emitAndWait(hookType: HookType, data: Record<string, unknown>): Promise<HookDecision>
-  onDecision(hookId: string, decision: HookDecision): void
-  setSocket(socket: unknown): void
-  close(): void
-}
-
 export interface SessionEntry {
   agent: Agent
   session: Session
   createdAt: Date
   lastActivity: Date
   toolPermissions: Record<string, ToolPermission>
-  hookCoordinator: HookCoordinator | null
-}
-
-export interface HookDecision {
-  behavior: 'allow' | 'deny'
-  message?: string
-  continueWith?: string
-}
-
-export type HookType =
-  | 'onPreToolUse'
-  | 'onPostToolUse'
-  | 'onTurnEnd'
-  | 'onTurnStart'
-  | 'onError'
-  | 'onCompact'
-  | 'onMaxTurns'
-  | 'onSessionStart'
-
-export interface HookEvent {
-  type: 'hook_event'
-  hookId: string
-  hookType: HookType
-  data: Record<string, unknown>
 }
 
 export interface SessionCreateBody {
   config: ServiceAgentConfig
-  hooks?: HookType[]
+  resumeSessionId?: string
   toolPermissions?: Record<string, ToolPermission>
 }
 
@@ -124,19 +91,4 @@ export interface SaveMemoryBody {
   content: string
   type?: string
   description?: string
-}
-
-export interface ConnectMCPServerBody {
-  serverId?: string
-  config: {
-    command: string
-    args?: string[]
-    env?: Record<string, string>
-  }
-}
-
-export interface CallMCPToolBody {
-  serverId: string
-  toolName: string
-  toolInput: Record<string, unknown>
 }
