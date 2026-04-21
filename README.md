@@ -1,5 +1,3 @@
-# AI Workspace
-
 ```
  ██████╗ ██████╗ ██╗██╗   ██╗███████╗
  ██╔══██╗██╔══██╗██║██║   ██║██╔════╝
@@ -9,7 +7,30 @@
  ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═══╝  ╚══════╝
 ```
 
-> 一个充满可能性的 AI 编程工作空间。轻量、模块化、生产就绪。
+> **生产级 AI 编程 Agent 架构，开源可用。**
+>
+> 灵感来自业界领先的 AI 编程工具，专注于轻量、模块化、生产就绪。
+
+---
+
+## 血统
+
+本项目基于 **Claude Code** 的生产级 Agent 架构改造。
+
+Claude Code 是 Anthropic 官方推出的 CLI 工具，为全球开发者提供 AI 编程能力。其核心架构经过海量真实代码库验证，稳定可靠。
+
+**codenano** 提取其核心引擎，保留精华，去除终端 UI 绑定，做成轻量级 SDK，让每个人都能基于这套架构构建自己的 AI 编程工具。
+
+```
+Claude Code (Anthropic 官方)
+        │
+        │ 提取核心架构
+        ▼
+    codenano SDK
+        │
+        ├── codenano-api (HTTP/WebSocket 服务)
+        └── openspec (变更管理系统)
+```
 
 ---
 
@@ -17,7 +38,7 @@
 
 ### [codenano](./codenano/) — AI 编程 Agent SDK
 
-轻量级 AI 编程 Agent SDK，灵感来自生产级 Agent 架构。
+轻量级 AI 编程 Agent SDK，保留 Claude Code 核心架构。
 
 ```typescript
 import { createAgent, coreTools } from 'codenano'
@@ -32,14 +53,16 @@ const result = await agent.ask('Read package.json and summarize it')
 
 | 特性 | 描述 |
 |------|------|
-| ~8,000 行代码 | 专注核心，无冗余 |
-| 17 内置工具 | Read/Edit/Write/Glob/Grep/Bash + 更多 |
-| 流式输出 | 实时看到 Agent 思考过程 |
-| 会话持久化 | JSONL 保存/恢复 |
-| 跨会话记忆 | 自动提取并持久化重要上下文 |
-| MCP 协议 | 连接任意 MCP 服务器 |
-| 8 个生命周期钩子 | 精细控制 Agent 行为 |
-| 生产级可靠性 | 自动压缩、错误恢复、Token 预算 |
+| **~8,000 行代码** | 专注核心架构，无 UI 冗余 |
+| **17 内置工具** | Read/Edit/Write/Glob/Grep/Bash + WebSearch + MCP |
+| **流式输出** | 实时看到 Agent 思考过程 |
+| **会话持久化** | JSONL 保存/恢复 |
+| **跨会话记忆** | 自动提取并持久化重要上下文 |
+| **MCP 协议** | 连接任意 MCP 服务器 |
+| **8 个生命周期钩子** | 精细控制 Agent 行为 |
+| **生产级可靠性** | 自动压缩、错误恢复、Token 预算 |
+
+> 继承自 Claude Code 的生产验证架构，经过真实代码库海量验证。
 
 **[深入文档](./codenano/README.md)**
 
@@ -58,11 +81,10 @@ ANTHROPIC_AUTH_TOKEN=sk-ant-... npm start
 | 端点 | 功能 |
 |------|------|
 | `POST /api/v1/sessions` | 创建会话 |
-| `POST /api/v1/sessions/:id/message` | 发送消息 (支持 SSE 流式) |
+| `POST /api/v1/sessions/:id/message` | 发送消息 (SSE 流式) |
 | `GET /ws/sessions/:id/hooks` | WebSocket 钩子通道 |
 | `POST /api/v1/memory` | 持久化记忆 |
 | `POST /api/v1/mcp/connect` | 连接 MCP 服务器 |
-| `GET /api/v1/cost/pricing` | 模型定价查询 |
 
 **[完整 API 文档](./docs/codenano-api.md)**
 
@@ -80,7 +102,7 @@ openspec/
 │   ├── memory-api/
 │   ├── mcp-api/
 │   └── sandbox-isolation/
-└── changes/         # 变更提案 (delta specs)
+└── changes/         # 变更提案
     └── per-session-workspace-isolation/
         ├── proposal.md
         ├── design.md
@@ -88,40 +110,20 @@ openspec/
         └── tasks.md
 ```
 
-**[查看规格](./openspec/specs/)**
-
 ---
 
 ## 快速开始
 
-### 1. 安装依赖
-
 ```bash
-# codenano SDK
+# 安装 SDK
 npm install codenano
 
-# 或启动 API 服务
-cd codenano-api && npm install
-```
-
-### 2. 设置环境变量
-
-```bash
-export ANTHROPIC_AUTH_TOKEN=sk-ant-your-token-here
-```
-
-### 3. 运行示例
-
-```bash
-# SDK 示例
+# 运行
 node -e "
 const { createAgent, coreTools } = require('codenano')
 const agent = createAgent({ model: 'claude-sonnet-4-6', tools: coreTools() })
 agent.ask('What is 2+2?').then(r => console.log(r.text))
 "
-
-# 或启动 API 服务
-ANTHROPIC_AUTH_TOKEN=your-token npm start
 ```
 
 ---
@@ -131,32 +133,14 @@ ANTHROPIC_AUTH_TOKEN=your-token npm start
 ```
 ┌─────────────────────────────────────────────────────────┐
 │                        AI Workspace                      │
-├─────────────────────────────────────────────────────────┤
-│  codenano         │  codenano-api    │  openspec       │
-│  ─────────────    │  ─────────────   │  ─────────      │
-│  TypeScript       │  TypeScript      │  Markdown       │
-│  Node.js          │  Fastify        │  JSON Schema    │
-│  Anthropic SDK    │  WebSocket      │  Git-based      │
-└─────────────────────────────────────────────────────────┘
+├─────────────────┬──────────────────┬───────────────────┤
+│    codenano     │   codenano-api   │     openspec      │
+│   ───────────   │   ────────────   │    ─────────      │
+│  TypeScript     │  TypeScript      │   Markdown        │
+│  Node.js        │  Fastify         │   JSON Schema     │
+│  Anthropic SDK  │  WebSocket       │   Git-based       │
+└─────────────────┴──────────────────┴───────────────────┘
 ```
-
-| 组件 | 技术 | 用途 |
-|------|------|------|
-| Runtime | Node.js 18+ | JavaScript 运行时 |
-| Language | TypeScript 5.7 | 类型安全 |
-| SDK | Anthropic SDK | Claude API |
-| HTTP | Fastify | 高性能 Web 框架 |
-| Streaming | Server-Sent Events | 实时流式响应 |
-| Persistence | JSONL | 会话和记忆存储 |
-| MCP | STDIO/SSE/HTTP | Model Context Protocol |
-
----
-
-## 文档
-
-- [Codenano SDK](./codenano/README.md) — 完整 SDK 文档
-- [Codenano API](./docs/codenano-api.md) — REST API 参考
-- [本地开发](./docs/local-development.md) — 开发环境设置
 
 ---
 
@@ -187,10 +171,34 @@ ANTHROPIC_AUTH_TOKEN=your-token npm start
 
 ---
 
+## 与 Claude Code 的关系
+
+| 特性 | Claude Code | codenano |
+|------|-------------|----------|
+| Agent 循环 | `while(true) → model → tool_use → execute → repeat` | ✅ 相同模式 |
+| 核心工具集 | Read/Edit/Write/Bash/Grep/Glob | ✅ 相同 |
+| 流式执行 | ✅ | ✅ |
+| 会话持久化 | ✅ | ✅ |
+| 记忆系统 | ✅ | ✅ |
+| MCP 协议 | ✅ | ✅ |
+| CLI/TUI | ✅ 终端 UI | ❌ 纯 SDK |
+| 权限系统 | 6 种模式 + 规则层 | 简化版钩子 |
+
+codenano 保留了 Claude Code 的**核心引擎**，去除了终端 UI 绑定，适合构建：
+
+- AI 编程 API 服务
+- 自定义 AI 编码助手
+- CI/CD 集成工具
+- 代码审查/分析服务
+
+---
+
 <p align="center">
 
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue.svg)
 ![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)
 ![MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
+
+**Powered by Claude Code Architecture**
 
 </p>

@@ -1,6 +1,8 @@
 # Codenano API Reference
 
-Node.js Fastify HTTP/WebSocket 服务，封装 codenano SDK。
+Node.js Fastify HTTP/WebSocket 服务，封装 codenano SDK（基于 Claude Code 核心架构）。
+
+**Powered by Claude Code Architecture**
 
 **Base URL**: `http://localhost:8000`
 
