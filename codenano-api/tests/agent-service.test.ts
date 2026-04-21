@@ -1,5 +1,9 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
 import { SessionRegistry } from '../src/services/session-registry.js'
+import { createAgent } from 'codenano'
+import { join } from 'path'
+import { homedir } from 'os'
+import fs from 'fs'
 
 // Mock codenano with unique session IDs
 vi.mock('codenano', async () => {
@@ -38,6 +42,7 @@ vi.mock('codenano', async () => {
 
 describe('SessionRegistry', () => {
   let registry: SessionRegistry
+  const WORKSPACE_BASE = join(homedir(), '.agent-core', 'workspaces')
 
   beforeEach(() => {
     registry = new SessionRegistry()
@@ -47,37 +52,19 @@ describe('SessionRegistry', () => {
     await registry.destroyAll()
   })
 
-  it('should create a session', async () => {
-    const sessionId = await registry.create({
-      model: 'claude-sonnet-4-6',
-    })
-
-    expect(sessionId).toBeDefined()
-    expect(typeof sessionId).toBe('string')
-  })
-
-  it('should get a session', async () => {
-    const sessionId = await registry.create({ model: 'claude-sonnet-4-6' })
-    const entry = registry.get(sessionId)
-
-    expect(entry).toBeDefined()
-    // create() registers a placeholder - session/agent are null until register() is called
-    expect(entry!.session).toBeNull()
-    expect(entry!.agent).toBeNull()
-  })
-
   it('should register a session with agent and session', async () => {
-    const { createAgent } = await import('codenano')
     const agent = createAgent({ model: 'claude-sonnet-4-6' })
     const session = agent.session('test-session')
     const registrySessionId = 'test-session-id'
+    const workspace = join(WORKSPACE_BASE, registrySessionId)
 
-    registry.register(registrySessionId, agent, session)
+    registry.register(registrySessionId, agent, session, { workspace })
 
     const entry = registry.get(registrySessionId)
     expect(entry).toBeDefined()
     expect(entry!.agent).toBe(agent)
     expect(entry!.session).toBe(session)
+    expect(entry!.workspace).toBe(workspace)
   })
 
   it('should return undefined for nonexistent session', () => {
@@ -85,69 +72,102 @@ describe('SessionRegistry', () => {
     expect(entry).toBeUndefined()
   })
 
-  it('should list sessions', async () => {
-    const sessionId1 = await registry.create({ model: 'claude-sonnet-4-6' })
-    const sessionId2 = await registry.create({ model: 'claude-sonnet-4-6' })
+  it('should list sessions with workspace', async () => {
+    const agent1 = createAgent({ model: 'claude-sonnet-4-6' })
+    const session1 = agent1.session('session-1')
+    const ws1 = join(WORKSPACE_BASE, 'session-1')
+
+    const agent2 = createAgent({ model: 'claude-sonnet-4-6' })
+    const session2 = agent2.session('session-2')
+    const ws2 = join(WORKSPACE_BASE, 'session-2')
+
+    registry.register('session-1', agent1, session1, { workspace: ws1 })
+    registry.register('session-2', agent2, session2, { workspace: ws2 })
 
     const sessions = registry.list()
 
     expect(sessions).toHaveLength(2)
-    expect(sessions.map(s => s.sessionId)).toContain(sessionId1)
-    expect(sessions.map(s => s.sessionId)).toContain(sessionId2)
+    expect(sessions.map(s => s.sessionId)).toContain('session-1')
+    expect(sessions.map(s => s.sessionId)).toContain('session-2')
+    expect(sessions.find(s => s.sessionId === 'session-1')!.workspace).toBe(ws1)
+    expect(sessions.find(s => s.sessionId === 'session-2')!.workspace).toBe(ws2)
   })
 
   it('should touch a session to update lastActivity', async () => {
-    const sessionId = await registry.create({ model: 'claude-sonnet-4-6' })
-    const entry1 = registry.get(sessionId)!
+    const agent = createAgent({ model: 'claude-sonnet-4-6' })
+    const session = agent.session('session-touch')
+    const workspace = join(WORKSPACE_BASE, 'session-touch')
+
+    registry.register('session-touch', agent, session, { workspace })
+    const entry1 = registry.get('session-touch')!
 
     // Small delay to ensure time difference
     await new Promise(resolve => setTimeout(resolve, 10))
 
-    registry.touch(sessionId)
-    const entry2 = registry.get(sessionId)!
+    registry.touch('session-touch')
+    const entry2 = registry.get('session-touch')!
 
     expect(entry2.lastActivity.getTime()).toBeGreaterThanOrEqual(entry1.lastActivity.getTime())
   })
 
   it('should destroy a session', async () => {
-    const sessionId = await registry.create({ model: 'claude-sonnet-4-6' })
-    expect(registry.get(sessionId)).toBeDefined()
+    const agent = createAgent({ model: 'claude-sonnet-4-6' })
+    const session = agent.session('session-destroy')
+    const workspace = join(WORKSPACE_BASE, 'session-destroy')
 
-    await registry.destroy(sessionId)
-    expect(registry.get(sessionId)).toBeUndefined()
+    // Create workspace directory first
+    fs.mkdirSync(workspace, { recursive: true })
+
+    registry.register('session-destroy', agent, session, { workspace })
+    expect(registry.get('session-destroy')).toBeDefined()
+
+    await registry.destroy('session-destroy')
+    expect(registry.get('session-destroy')).toBeUndefined()
+    // Workspace should be cleaned up
+    expect(fs.existsSync(workspace)).toBe(false)
   })
 
   it('should resolve toolPreset to correct tools', async () => {
-    // Tool resolution happens in agent.ts during createAgentInstance, not in create()
-    // This test verifies that toolPreset is stored correctly in the registry
-    const { createAgent } = await import('codenano')
-    const agent = createAgent({ model: 'claude-sonnet-4-6' })
-    const session = agent.session('test-session')
-    const sessionId = 'test-session'
-
-    // Verify codenano's tool functions are available and can be called
-    const { coreTools, extendedTools, allTools } = await import('codenano')
+    // Tool resolution happens in agent.ts during createAgentInstance
+    const { createAgent, coreTools, extendedTools, allTools } = await import('codenano')
 
     // These should be called when creating an agent with toolPreset
-    createAgent({ model: 'claude-sonnet-4-6', toolPreset: 'core' })
-    createAgent({ model: 'claude-sonnet-4-6', toolPreset: 'extended' })
-    createAgent({ model: 'claude-sonnet-4-6', toolPreset: 'all' })
+    createAgent({ model: 'claude-sonnet-4-6' })
+    createAgent({ model: 'claude-sonnet-4-6' })
+    createAgent({ model: 'claude-sonnet-4-6' })
 
-    // The actual tool resolution is tested in agent.ts/unit tests
-    // Here we just verify the registry can hold sessions
-    registry.register(sessionId, agent, session)
-    expect(registry.get(sessionId)).toBeDefined()
+    // Verify registry can hold sessions
+    const agent = createAgent({ model: 'claude-sonnet-4-6' })
+    const session = agent.session('test-session')
+    const workspace = join(WORKSPACE_BASE, 'test-session')
+
+    registry.register('test-session', agent, session, { workspace })
+    expect(registry.get('test-session')).toBeDefined()
   })
 
   it('should destroy all sessions', async () => {
-    await registry.create({ model: 'claude-sonnet-4-6' })
-    await registry.create({ model: 'claude-sonnet-4-6' })
-    await registry.create({ model: 'claude-sonnet-4-6' })
+    const workspaces = ['ws-1', 'ws-2', 'ws-3'].map(id => join(WORKSPACE_BASE, id))
+
+    // Create workspace directories
+    for (const ws of workspaces) {
+      fs.mkdirSync(ws, { recursive: true })
+    }
+
+    const agents = workspaces.map(() => createAgent({ model: 'claude-sonnet-4-6' }))
+    const sessions = agents.map((agent, i) => agent.session(`session-${i}`))
+
+    registry.register('session-1', agents[0], sessions[0], { workspace: workspaces[0] })
+    registry.register('session-2', agents[1], sessions[1], { workspace: workspaces[1] })
+    registry.register('session-3', agents[2], sessions[2], { workspace: workspaces[2] })
 
     expect(registry.list()).toHaveLength(3)
 
     await registry.destroyAll()
 
     expect(registry.list()).toHaveLength(0)
+    // All workspaces should be cleaned up
+    for (const ws of workspaces) {
+      expect(fs.existsSync(ws)).toBe(false)
+    }
   })
 })

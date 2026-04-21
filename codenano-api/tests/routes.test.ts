@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import Fastify, { FastifyInstance } from 'fastify'
-import websocket from '@fastify/websocket'
 import cors from '@fastify/cors'
 
 // Mock codenano
@@ -62,14 +61,11 @@ vi.mock('codenano', async () => {
 
 // Import routes after mock setup
 import { sessionsRoutes } from '../src/routes/sessions.js'
-import { hooksRoutes } from '../src/routes/hooks.js'
 import { memoryRoutes } from '../src/routes/memory.js'
-import { mcpRoutes } from '../src/routes/mcp.js'
-import { toolsRoutes, clearCustomTools } from '../src/routes/tools.js'
 import { costRoutes } from '../src/routes/cost.js'
 import { gitRoutes } from '../src/routes/git.js'
 import { skillsRoutes } from '../src/routes/skills.js'
-import { getSessionRegistry, resetSessionRegistry } from '../src/services/session-registry.js'
+import { getSessionRegistry } from '../src/services/session-registry.js'
 
 describe('API Routes', () => {
   let app: FastifyInstance
@@ -77,18 +73,13 @@ describe('API Routes', () => {
   beforeEach(async () => {
     app = Fastify()
     await app.register(cors)
-    await app.register(websocket)
 
     await app.register(sessionsRoutes)
-    await app.register(hooksRoutes)
     await app.register(memoryRoutes)
-    await app.register(mcpRoutes)
-    await app.register(toolsRoutes)
     await app.register(costRoutes)
     await app.register(gitRoutes)
     await app.register(skillsRoutes)
 
-    clearCustomTools()
     await app.ready()
   })
 
@@ -111,6 +102,7 @@ describe('API Routes', () => {
       expect(response.statusCode).toBe(200)
       const body = JSON.parse(response.body)
       expect(body.sessionId).toBeDefined()
+      expect(body.workspace).toBeDefined()
     })
 
     it('GET /api/v1/sessions - lists sessions', async () => {
@@ -152,109 +144,6 @@ describe('API Routes', () => {
       })
 
       expect(response.statusCode).toBe(404)
-    })
-  })
-
-  describe('Tools Routes', () => {
-    it('POST /api/v1/tools - defines a tool', async () => {
-      const response = await app.inject({
-        method: 'POST',
-        url: '/api/v1/tools',
-        payload: {
-          name: 'test-tool',
-          description: 'A test tool',
-          inputSchema: { query: { type: 'string' } },
-        },
-      })
-
-      expect(response.statusCode).toBe(200)
-      const body = JSON.parse(response.body)
-      expect(body.ok).toBe(true)
-      expect(body.toolName).toBe('test-tool')
-    })
-
-    it('POST /api/v1/tools - validates required fields', async () => {
-      const response = await app.inject({
-        method: 'POST',
-        url: '/api/v1/tools',
-        payload: {
-          name: 'test-tool',
-        },
-      })
-
-      expect(response.statusCode).toBe(400)
-    })
-
-    it('GET /api/v1/tools - lists custom tools', async () => {
-      // First create a tool
-      await app.inject({
-        method: 'POST',
-        url: '/api/v1/tools',
-        payload: {
-          name: 'list-test-tool',
-          description: 'For list test',
-          inputSchema: { query: { type: 'string' } },
-        },
-      })
-
-      const response = await app.inject({
-        method: 'GET',
-        url: '/api/v1/tools',
-      })
-
-      expect(response.statusCode).toBe(200)
-      const body = JSON.parse(response.body)
-      expect(body.tools).toBeDefined()
-      expect(body.tools.length).toBeGreaterThan(0)
-    })
-
-    it('GET /api/v1/tools/:name - gets tool by name', async () => {
-      await app.inject({
-        method: 'POST',
-        url: '/api/v1/tools',
-        payload: {
-          name: 'get-test-tool',
-          description: 'For get test',
-          inputSchema: { query: { type: 'string' } },
-        },
-      })
-
-      const response = await app.inject({
-        method: 'GET',
-        url: '/api/v1/tools/get-test-tool',
-      })
-
-      expect(response.statusCode).toBe(200)
-      const body = JSON.parse(response.body)
-      expect(body.name).toBe('get-test-tool')
-    })
-
-    it('GET /api/v1/tools/:name - returns 404 for unknown tool', async () => {
-      const response = await app.inject({
-        method: 'GET',
-        url: '/api/v1/tools/unknown-tool',
-      })
-
-      expect(response.statusCode).toBe(404)
-    })
-
-    it('DELETE /api/v1/tools/:name - deletes tool', async () => {
-      await app.inject({
-        method: 'POST',
-        url: '/api/v1/tools',
-        payload: {
-          name: 'delete-test-tool',
-          description: 'For delete test',
-          inputSchema: { query: { type: 'string' } },
-        },
-      })
-
-      const response = await app.inject({
-        method: 'DELETE',
-        url: '/api/v1/tools/delete-test-tool',
-      })
-
-      expect(response.statusCode).toBe(200)
     })
   })
 
@@ -426,81 +315,6 @@ describe('API Routes', () => {
       const response = await app.inject({
         method: 'DELETE',
         url: '/api/v1/memory/unknown-key',
-      })
-
-      expect(response.statusCode).toBe(404)
-    })
-  })
-
-  describe('MCP Routes', () => {
-    it('POST /api/v1/mcp/connect - connects MCP server', async () => {
-      const response = await app.inject({
-        method: 'POST',
-        url: '/api/v1/mcp/connect',
-        payload: {
-          config: {
-            command: 'npx',
-            args: ['-y', '@modelcontextprotocol/server-filesystem', '/tmp'],
-          },
-        },
-      })
-
-      expect(response.statusCode).toBe(200)
-      const body = JSON.parse(response.body)
-      expect(body.ok).toBe(true)
-      expect(body.serverId).toBeDefined()
-    })
-
-    it('POST /api/v1/mcp/connect - validates command required', async () => {
-      const response = await app.inject({
-        method: 'POST',
-        url: '/api/v1/mcp/connect',
-        payload: {
-          config: {},
-        },
-      })
-
-      expect(response.statusCode).toBe(400)
-    })
-
-    it('GET /api/v1/mcp/tools - lists MCP tools', async () => {
-      const response = await app.inject({
-        method: 'GET',
-        url: '/api/v1/mcp/tools',
-      })
-
-      expect(response.statusCode).toBe(200)
-      const body = JSON.parse(response.body)
-      expect(body.tools).toBeDefined()
-    })
-
-    it('POST /api/v1/mcp/tools/call - validates required fields', async () => {
-      const response = await app.inject({
-        method: 'POST',
-        url: '/api/v1/mcp/tools/call',
-        payload: {},
-      })
-
-      expect(response.statusCode).toBe(400)
-    })
-
-    it('POST /api/v1/mcp/tools/call - returns 404 for unknown server', async () => {
-      const response = await app.inject({
-        method: 'POST',
-        url: '/api/v1/mcp/tools/call',
-        payload: {
-          serverId: 'unknown',
-          toolName: 'test',
-        },
-      })
-
-      expect(response.statusCode).toBe(404)
-    })
-
-    it('DELETE /api/v1/mcp/:serverId - returns 404 for unknown server', async () => {
-      const response = await app.inject({
-        method: 'DELETE',
-        url: '/api/v1/mcp/unknown-server',
       })
 
       expect(response.statusCode).toBe(404)

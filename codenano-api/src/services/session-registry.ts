@@ -1,5 +1,7 @@
 import type { Agent, Session } from 'codenano'
 import type { ToolPermission } from '../types/index.js'
+import fs from 'fs'
+import path from 'path'
 
 const SB_TTL_MINUTES = parseInt(process.env.SB_TTL_MINUTES ?? '30', 10)
 const CLEANUP_INTERVAL_MS = 60000
@@ -11,6 +13,7 @@ export interface SessionEntry {
   createdAt: Date
   lastActivity: Date
   toolPermissions: Record<string, ToolPermission>
+  workspace: string
 }
 
 export class SessionRegistry {
@@ -43,7 +46,8 @@ export class SessionRegistry {
    */
   register(sessionId: string, agent: Agent, session: Session, options: {
     toolPermissions?: Record<string, ToolPermission>
-  } = {}): void {
+    workspace: string
+  }): void {
     const entry: SessionEntry = {
       agent,
       session,
@@ -51,6 +55,7 @@ export class SessionRegistry {
       createdAt: new Date(),
       lastActivity: new Date(),
       toolPermissions: options.toolPermissions ?? {},
+      workspace: options.workspace,
     }
 
     this.sessions.set(sessionId, entry)
@@ -71,11 +76,13 @@ export class SessionRegistry {
     sessionId: string
     createdAt: string
     lastActivity: string
+    workspace: string
   }> {
     return Array.from(this.sessions.values()).map((entry) => ({
       sessionId: entry.sessionId,
       createdAt: entry.createdAt.toISOString(),
       lastActivity: entry.lastActivity.toISOString(),
+      workspace: entry.workspace,
     }))
   }
 
@@ -88,6 +95,13 @@ export class SessionRegistry {
       entry.session.abort()
     } catch {
       // Ignore abort errors
+    }
+
+    // Delete workspace directory
+    try {
+      fs.rmSync(entry.workspace, { recursive: true, force: true })
+    } catch {
+      // Ignore cleanup errors
     }
 
     this.sessions.delete(sessionId)

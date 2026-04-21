@@ -8,6 +8,9 @@ import type {
   ToolPermission,
 } from '../types/index.js'
 import type { Agent, Session, ToolDef } from 'codenano'
+import { homedir } from 'os'
+import { mkdirSync } from 'fs'
+import { join } from 'path'
 
 const SSE_DELIMITER = '\n\n'
 
@@ -17,6 +20,7 @@ const sseWrite = (res: any, event: object) => {
 
 export async function sessionsRoutes(fastify: FastifyInstance): Promise<void> {
   const registry = getSessionRegistry()
+  const WORKSPACE_BASE = join(homedir(), '.agent-core', 'workspaces')
 
   // Create session with direct library call
   fastify.post('/api/v1/sessions', async (request: FastifyRequest, reply: FastifyReply) => {
@@ -27,11 +31,12 @@ export async function sessionsRoutes(fastify: FastifyInstance): Promise<void> {
       return reply.status(400).send({ error: 'Invalid tool preset. Must be "core", "extended", or "all".' })
     }
 
-    // Set workspace environment variable (if provided in config)
-    const workspace = (config as any).workspace
-    if (workspace) {
-      process.env.CODENANO_WORKSPACE = workspace
-    }
+    // Create session ID and workspace
+    const sessionId = resumeSessionId ?? crypto.randomUUID()
+    const workspace = join(WORKSPACE_BASE, sessionId)
+
+    // Create workspace directory
+    mkdirSync(workspace, { recursive: true })
 
     // Build persistence config
     const persistence: { enabled: boolean; storageDir?: string; resumeSessionId?: string } = {
@@ -42,34 +47,33 @@ export async function sessionsRoutes(fastify: FastifyInstance): Promise<void> {
       persistence.resumeSessionId = resumeSessionId
     }
 
-    // Build agent config (excluding workspace which is handled separately)
-    const { workspace: _ws, ...configWithoutWorkspace } = config as any
-
+    // Build agent config
     const agentConfig = {
-      model: configWithoutWorkspace.model ?? process.env.ANTHROPIC_MODEL ?? 'claude-sonnet-4-6',
+      model: config.model ?? process.env.ANTHROPIC_MODEL ?? 'claude-sonnet-4-6',
       apiKey: process.env.ANTHROPIC_AUTH_TOKEN,
-      baseURL: configWithoutWorkspace.baseURL ?? process.env.ANTHROPIC_BASE_URL,
-      maxTurns: configWithoutWorkspace.maxTurns,
-      thinkingConfig: configWithoutWorkspace.thinkingConfig,
-      maxOutputTokens: configWithoutWorkspace.maxOutputTokens,
-      identity: configWithoutWorkspace.identity,
-      language: configWithoutWorkspace.language,
-      overrideSystemPrompt: configWithoutWorkspace.overrideSystemPrompt,
-      appendSystemPrompt: configWithoutWorkspace.appendSystemPrompt,
-      provider: configWithoutWorkspace.provider,
-      awsRegion: configWithoutWorkspace.awsRegion,
-      autoCompact: configWithoutWorkspace.autoCompact,
-      fallbackModel: configWithoutWorkspace.fallbackModel,
-      maxOutputRecoveryAttempts: configWithoutWorkspace.maxOutputRecoveryAttempts,
-      autoLoadInstructions: configWithoutWorkspace.autoLoadInstructions,
-      toolResultBudget: configWithoutWorkspace.toolResultBudget,
-      maxOutputTokensCap: configWithoutWorkspace.maxOutputTokensCap,
-      streamingToolExecution: configWithoutWorkspace.streamingToolExecution,
-      mcpServers: configWithoutWorkspace.mcpServers,
+      baseURL: config.baseURL ?? process.env.ANTHROPIC_BASE_URL,
+      maxTurns: config.maxTurns,
+      thinkingConfig: config.thinkingConfig,
+      maxOutputTokens: config.maxOutputTokens,
+      identity: config.identity,
+      language: config.language,
+      overrideSystemPrompt: config.overrideSystemPrompt,
+      appendSystemPrompt: config.appendSystemPrompt,
+      provider: config.provider,
+      awsRegion: config.awsRegion,
+      autoCompact: config.autoCompact,
+      fallbackModel: config.fallbackModel,
+      maxOutputRecoveryAttempts: config.maxOutputRecoveryAttempts,
+      autoLoadInstructions: config.autoLoadInstructions,
+      toolResultBudget: config.toolResultBudget,
+      maxOutputTokensCap: config.maxOutputTokensCap,
+      streamingToolExecution: config.streamingToolExecution,
+      mcpServers: config.mcpServers,
       persistence,
-      memory: configWithoutWorkspace.memory,
-      toolPreset: configWithoutWorkspace.toolPreset,
-      tools: configWithoutWorkspace.tools as ToolDef[],
+      memory: config.memory,
+      toolPreset: config.toolPreset,
+      tools: config.tools as ToolDef[],
+      workspace,  // Pass workspace to agent config
     }
 
     // Create agent with direct library call
@@ -78,16 +82,16 @@ export async function sessionsRoutes(fastify: FastifyInstance): Promise<void> {
       toolPermissions: toolPermissions as Record<string, ToolPermission>,
     })
 
-    // Create session - use resumeSessionId if provided, otherwise generate new ID
-    const sessionId = resumeSessionId ?? crypto.randomUUID()
+    // Create session
     const session = agent.session(sessionId)
 
     // Register in registry
     registry.register(sessionId, agent, session, {
       toolPermissions: toolPermissions as Record<string, ToolPermission>,
+      workspace,
     })
 
-    return reply.send({ sessionId })
+    return reply.send({ sessionId, workspace })
   })
 
   // List all sessions
@@ -111,6 +115,7 @@ export async function sessionsRoutes(fastify: FastifyInstance): Promise<void> {
         sessionMap.set(entry.sessionId, {
           ...existing,
           lastActivity: entry.lastActivity,
+          workspace: entry.workspace,
           active: true,
         })
       } else {
@@ -118,6 +123,7 @@ export async function sessionsRoutes(fastify: FastifyInstance): Promise<void> {
           sessionId: entry.sessionId,
           createdAt: entry.createdAt,
           lastActivity: entry.lastActivity,
+          workspace: entry.workspace,
           active: true,
         })
       }
@@ -139,6 +145,7 @@ export async function sessionsRoutes(fastify: FastifyInstance): Promise<void> {
 
     return reply.send({
       sessionId: id,
+      workspace: entry.workspace,
       createdAt: entry.createdAt.toISOString(),
       lastActivity: entry.lastActivity.toISOString(),
     })
