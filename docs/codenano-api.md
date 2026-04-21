@@ -1,88 +1,31 @@
 # Codenano API Reference
 
-Node.js Fastify HTTP/WebSocket 服务，直接封装 codenano SDK。
+Node.js Fastify HTTP/WebSocket 服务，封装 codenano SDK。
 
-## Base URL
-
-```
-http://localhost:8000
-```
+**Base URL**: `http://localhost:8000`
 
 ## 环境变量
 
 | 变量 | 必填 | 默认值 | 说明 |
 |------|------|--------|------|
-| `ANTHROPIC_AUTH_TOKEN` | **是** | - | Anthropic API 密钥，**未设置则服务无法启动** |
+| `ANTHROPIC_AUTH_TOKEN` | **是** | - | Anthropic API 密钥 |
 | `ANTHROPIC_BASE_URL` | 否 | `https://api.anthropic.com` | API 端点 |
-| `ANTHROPIC_MODEL` | 否 | `claude-sonnet-4-6` | 默认模型，用于 config.model 未指定时 |
+| `ANTHROPIC_MODEL` | 否 | `claude-sonnet-4-6` | 默认模型 |
 | `LOG_LEVEL` | 否 | `INFO` | 日志级别 |
 | `AGENT_SERVICE_PORT` | 否 | `8000` | 服务端口 |
-| `SB_TTL_MINUTES` | 否 | `30` | Session 存活时间（分钟） |
-
----
-
-## 重要行为说明
-
-### 1. 工具配置互斥
-
-`toolPreset` 和 `tools` **不可同时生效**，同时传时 `tools` 优先，`toolPreset` 被忽略。
-
-```json
-// 错误用法：toolPreset 会被忽略
-{"config": {"toolPreset": "extended", "tools": [...]}}
-
-// 正确用法：二选一
-{"config": {"toolPreset": "extended"}}
-{"config": {"tools": [...]}}
-```
-
-### 2. 模型优先级
-
-```
-config.model > ANTHROPIC_MODEL 环境变量 > 默认值 claude-sonnet-4-6
-```
-
-### 3. 工具权限默认值
-
-未在 `toolPermissions` 中指定的工具，**默认行为是 `ask`**（需要客户端决策）。
-
-### 4. Session 404 处理
-
-访问不存在的 session 时，所有接口统一返回 `404 Not Found`。
-
-### 5. Memory SDK 限制
-
-codenano SDK 的 Memory 存储为**本地文件系统**，接口返回字段为 SDK 定义的 `name`/`description`，与请求的 `key` 不同。
-
----
-
-## 新功能
-
-本次重构移除了 subprocess/bwrap 架构，改用直接 TypeScript 库集成：
-
-- **移除**: bwrap 沙箱依赖
-- **移除**: agent-wrapper.js 子进程包装
-- **新增**: 直接调用 codenano SDK
-- **新增**: 路径验证通过 codenano 内置的 path-guard
-
----
 
 ## Session API
 
 ### 创建 Session
 
-创建新的 agent session。
-
 **端点**: `POST /api/v1/sessions`
 
 **请求体**:
-
 ```json
 {
   "config": {
     "model": "claude-sonnet-4-6",
     "maxTurns": 50,
-    "tools": ["Bash", "FileRead", "FileWrite"],
     "toolPreset": "core"
   },
   "hooks": ["onPreToolUse", "onTurnEnd"],
@@ -92,54 +35,38 @@ codenano SDK 的 Memory 存储为**本地文件系统**，接口返回字段为 
 }
 ```
 
-> **注意**: `systemPrompt` 不是有效字段，请使用 `overrideSystemPrompt` 或 `appendSystemPrompt`
-
 **响应**: `201 Created`
-
 ```json
 {
   "sessionId": "550e8400-e29b-41d4-a716-446655440000"
 }
 ```
 
-#### config 字段说明
+### config 字段
 
 | 字段 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
-| `model` | string | `claude-sonnet-4-6` | Claude 模型，优先级：config.model > ANTHROPIC_MODEL 环境变量 > 默认值 |
-
-> **模型优先级**: `config.model` > `ANTHROPIC_MODEL` 环境变量 > 默认值 `claude-sonnet-4-6`
-| `apiKey` | string | - | API 密钥（通常用环境变量） |
-| `baseURL` | string | - | API 端点 |
+| `model` | string | `claude-sonnet-4-6` | Claude 模型 |
 | `provider` | string | `anthropic` | 提供商：`anthropic`、`bedrock` |
 | `awsRegion` | string | - | AWS 区域（provider=bedrock 时） |
-| `fallbackModel` | string | - | 备用模型 |
+| `toolPreset` | string | `core` | 工具预设：`core`、`extended`、`all` |
+| `tools` | unknown[] | - | 自定义工具，与 `toolPreset` 互斥，优先 |
 | `maxTurns` | number | - | 最大对话轮数 |
 | `thinkingConfig` | string | - | `adaptive` 或 `disabled` |
 | `maxOutputTokens` | number | - | 最大输出 token 数 |
-| `maxOutputRecoveryAttempts` | number | - | 输出恢复重试次数 |
-| `toolPreset` | string | `core` | 工具预设：`core`、`extended`、`all`，与 `tools` 二选一 |
-| `tools` | unknown[] | `coreTools()` | 自定义工具列表，与 `toolPreset` 二选一，优先于 `toolPreset` |
-
-> **重要**: `tools` 和 `toolPreset` 互斥。**同时传两个时，`tools` 生效，`toolPreset` 被忽略**。
-> - 只需要预设工具：用 `toolPreset`
-> - 需要自定义工具：用 `tools`
-> - 通常建议只使用 `toolPreset`
-| `toolResultBudget` | boolean | - | 工具结果预算 |
-| `streamingToolExecution` | boolean | - | 流式工具执行 |
-| `systemPrompt` | string | - | 系统提示词 |
-| `identity` | string | - | 身份标识 |
-| `language` | string | - | 首选语言 |
-| `overrideSystemPrompt` | string | - | 完全替换系统提示词 |
-| `appendSystemPrompt` | string | - | 追加到系统提示词末尾 |
-| `mcpServers` | MCPServerConfig[] | `[]` | MCP 服务器配置 |
+| `overrideSystemPrompt` | string | - | 替换系统提示词 |
+| `appendSystemPrompt` | string | - | 追加到系统提示词 |
+| `mcpServers` | MCPServerConfig[] | - | MCP 服务器配置 |
 | `persistence` | object | - | 持久化配置 |
 | `memory` | object | - | 记忆配置 |
-| `autoCompact` | boolean | - | 自动压缩 |
-| `autoLoadInstructions` | boolean | - | 自动加载指令 |
-| `maxOutputTokensCap` | boolean | - | 输出 token 上限 |
 
-#### persistence 配置
+### toolPermissions 字段
+
+| 字段 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `toolPermissions` | Record<string, 'allow' \| 'deny' \| 'ask'> | `{}` | 未指定的工具默认 `ask` |
+
+### persistence 配置
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
@@ -147,17 +74,17 @@ codenano SDK 的 Memory 存储为**本地文件系统**，接口返回字段为 
 | `storageDir` | string | 存储目录 |
 | `resumeSessionId` | string | 恢复的 session ID |
 
-#### memory 配置
+### memory 配置
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
 | `memoryDir` | string | 记忆目录 |
 | `autoLoad` | boolean | 自动加载记忆 |
-| `extractStrategy` | string \\| object | 提取策略：`disabled`、`auto` 或 `{interval: number}` |
+| `extractStrategy` | string \| object | 提取策略：`disabled`、`auto` 或 `{interval: number}` |
 | `extractMaxTurns` | number | 提取最大轮数 |
 | `useForkedAgent` | boolean | 使用 fork 代理 |
 
-#### MCPServerConfig 配置
+### MCPServerConfig 配置
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
@@ -167,21 +94,16 @@ codenano SDK 的 Memory 存储为**本地文件系统**，接口返回字段为 
 | `args` | string[] | 命令参数 |
 | `env` | object | 环境变量 |
 | `url` | string | 服务器 URL（transport=sse/http 时） |
-| `headers` | object | 请求头 |
 
-#### toolPermissions 字段说明
+### 工具权限
 
-| 字段 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `toolPermissions` | Record<string, 'allow' \\| 'deny' \\| 'ask'> | `{}` | 工具权限规则，未指定的工具默认 `ask` |
+| 模式 | 行为 |
+|------|------|
+| `allow` | 工具直接执行，无 WebSocket 事件 |
+| `deny` | 工具被阻止 |
+| `ask` | 发送 WebSocket hook 等待客户端决策（默认） |
 
-#### hooks 字段说明
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `hooks` | `HookType[]` | 订阅的 hook 类型，见 [Hook WebSocket API](#hook-websocket-api) |
-
-#### 可用的 Hook 类型
+### Hook 类型
 
 | 类型 | 触发时机 |
 |------|----------|
@@ -198,12 +120,9 @@ codenano SDK 的 Memory 存储为**本地文件系统**，接口返回字段为 
 
 ### 发送消息
 
-向 session 发送消息。
-
 **端点**: `POST /api/v1/sessions/:id/message`
 
 **请求体**:
-
 ```json
 {
   "prompt": "Hello, explain this code",
@@ -212,7 +131,6 @@ codenano SDK 的 Memory 存储为**本地文件系统**，接口返回字段为 
 ```
 
 **流式响应** (`stream: true`):
-
 ```
 Content-Type: text/event-stream
 
@@ -223,36 +141,16 @@ data: {"type":"tool_result","tool":"Bash","result":"..."}
 data: {"type":"result","text":"...","usage":{...},"stopReason":"end_turn"}
 ```
 
-**非流式响应** (`stream: false`):
+**SSE 事件类型**: `query_start`、`text`、`tool_use`、`tool_result`、`result`
 
+**非流式响应** (`stream: false`):
 ```json
 {
   "result": {
     "text": "...",
-    "usage": {
-      "inputTokens": 100,
-      "outputTokens": 200
-    },
+    "usage": { "inputTokens": 100, "outputTokens": 200 },
     "stopReason": "end_turn"
   }
-}
-```
-
-#### SSE 事件类型
-
-| 事件类型 | 说明 |
-|----------|------|
-| `query_start` | 查询开始 |
-| `text` | 文本片段 |
-| `tool_use` | 工具调用 |
-| `tool_result` | 工具结果 |
-| `result` | 最终结果 |
-
-#### 错误响应: `404 Not Found`
-
-```json
-{
-  "error": "Session not found"
 }
 ```
 
@@ -260,18 +158,14 @@ data: {"type":"result","text":"...","usage":{...},"stopReason":"end_turn"}
 
 ### 获取 Session
 
-获取 session 元数据。
-
 **端点**: `GET /api/v1/sessions/:id`
 
 **响应**: `200 OK`
-
 ```json
 {
   "sessionId": "550e8400-e29b-41d4-a716-446655440000",
   "createdAt": "2026-04-20T10:00:00.000Z",
-  "lastActivity": "2026-04-20T10:05:00.000Z",
-  "historyLength": 5
+  "lastActivity": "2026-04-20T10:05:00.000Z"
 }
 ```
 
@@ -282,14 +176,14 @@ data: {"type":"result","text":"...","usage":{...},"stopReason":"end_turn"}
 **端点**: `GET /api/v1/sessions`
 
 **响应**: `200 OK`
-
 ```json
 {
   "sessions": [
     {
       "sessionId": "550e8400-e29b-41d4-a716-446655440000",
       "createdAt": "2026-04-20T10:00:00.000Z",
-      "lastActivity": "2026-04-20T10:05:00.000Z"
+      "lastActivity": "2026-04-20T10:05:00.000Z",
+      "active": true
     }
   ]
 }
@@ -299,17 +193,14 @@ data: {"type":"result","text":"...","usage":{...},"stopReason":"end_turn"}
 
 ### 获取 Session 历史
 
-获取会话历史记录。
-
 **端点**: `GET /api/v1/sessions/:id/history`
 
 **响应**: `200 OK`
-
 ```json
 {
   "history": [
-    {"role": "user", "content": "Hello"},
-    {"role": "assistant", "content": [{"type": "text", "text": "Hi"}]}
+    { "role": "user", "content": "Hello" },
+    { "role": "assistant", "content": [{ "type": "text", "text": "Hi" }] }
   ]
 }
 ```
@@ -318,146 +209,73 @@ data: {"type":"result","text":"...","usage":{...},"stopReason":"end_turn"}
 
 ### 删除 Session
 
-关闭并删除 session。
-
 **端点**: `DELETE /api/v1/sessions/:id`
 
 **响应**: `200 OK`
-
 ```json
-{
-  "ok": true
-}
+{ "ok": true }
 ```
-
----
 
 ---
 
 ## Hook WebSocket API
 
-客户端通过 WebSocket 接收 hook 事件并响应。
-
 **端点**: `GET /ws/sessions/:id/hooks`
 
-### 连接
-
-```javascript
-const ws = new WebSocket('ws://localhost:8000/ws/sessions/550e8400-e29b-41d4-a716-446655440000/hooks');
-```
-
 ### 注册 Hooks
-
-客户端发送注册消息：
-
 ```json
-{
-  "type": "register_hook",
-  "hooks": ["onPreToolUse", "onTurnEnd"]
-}
+{ "type": "register_hook", "hooks": ["onPreToolUse", "onTurnEnd"] }
 ```
 
 ### 接收 Hook 事件
-
-服务发送 hook 事件：
-
 ```json
 {
   "type": "hook_event",
   "hookId": "uuid",
   "hookType": "onPreToolUse",
-  "data": {
-    "toolName": "Bash",
-    "toolInput": {"command": "ls -la"}
-  }
+  "data": { "toolName": "Bash", "toolInput": { "command": "ls -la" } }
 }
 ```
 
 ### 发送 Hook 决策
-
-客户端响应决策：
-
 ```json
-{
-  "type": "hook_decision",
-  "hookId": "uuid",
-  "decision": {
-    "behavior": "allow"
-  }
-}
+{ "type": "hook_decision", "hookId": "uuid", "decision": { "behavior": "allow" } }
 ```
 
-拒绝工具执行：
-
+拒绝工具：
 ```json
-{
-  "type": "hook_decision",
-  "hookId": "uuid",
-  "decision": {
-    "behavior": "deny",
-    "message": "blocked"
-  }
-}
+{ "type": "hook_decision", "hookId": "uuid", "decision": { "behavior": "deny", "message": "blocked" } }
 ```
 
-#### Hook 超时
+**超时**: 客户端未在 30 秒内响应，决策默认为 `allow`。
 
-客户端未在 30 秒内响应，决策默认为 `allow`。
-
-#### Ping/Pong
-
-客户端可发送 ping 保持连接活跃：
-
+**Ping/Pong**:
 ```json
-{"type": "ping"}
+{ "type": "ping" } → { "type": "pong" }
 ```
-
-服务端响应：
-
-```json
-{"type": "pong"}
-```
-
-#### 错误响应: `404 Not Found`
-
-Session 不存在时拒绝连接。
 
 ---
 
 ## Memory API
-
-> **WIP** - 此接口依赖 codenano SDK 本地文件系统存储。
-
-跨会话持久化记忆。
 
 ### 保存 Memory
 
 **端点**: `POST /api/v1/memory`
 
 **请求体**:
-
 ```json
 {
   "key": "project-context",
   "content": "This is a Python ML project",
-  "type": "context"
+  "type": "context",
+  "description": "项目上下文"
 }
 ```
 
 **响应**: `201 Created`
-
 ```json
-{
-  "ok": true
-}
+{ "ok": true, "filepath": "/path/to/memory.md" }
 ```
-
-| 字段 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `key` | string | - | 记忆键名 |
-| `content` | string | - | 记忆内容 |
-| `type` | string | `general` | 记忆类型 |
-| `description` | string | `key` | 记忆描述 |
 
 ---
 
@@ -466,23 +284,12 @@ Session 不存在时拒绝连接。
 **端点**: `GET /api/v1/memory/:key`
 
 **响应**: `200 OK`
-
 ```json
 {
   "name": "project-context",
-  "description": "project-context",
+  "description": "项目上下文",
   "type": "context",
   "content": "This is a Python ML project"
-}
-```
-
-**注意**: 实际返回字段为 `name`/`description`，与请求的 `key` 不同。这是 SDK 行为，codenano-api 无权修改。
-
-#### 错误响应: `404 Not Found`
-
-```json
-{
-  "error": "Memory not found"
 }
 ```
 
@@ -492,28 +299,12 @@ Session 不存在时拒绝连接。
 
 **端点**: `GET /api/v1/memory`
 
-**查询参数**:
-
-| 参数 | 说明 |
-|------|------|
-| `pattern` | 前缀匹配（匹配 `name` 字段） |
+**查询参数**: `pattern` - 前缀匹配
 
 **响应**: `200 OK`
-
 ```json
-{
-  "memories": [
-    {
-      "name": "project-context",
-      "description": "project-context",
-      "type": "context",
-      "content": "This is a Python ML project"
-    }
-  ]
-}
+{ "memories": [...] }
 ```
-
-**示例**: `GET /api/v1/memory?pattern=project-`
 
 ---
 
@@ -522,37 +313,19 @@ Session 不存在时拒绝连接。
 **端点**: `DELETE /api/v1/memory/:key`
 
 **响应**: `200 OK`
-
 ```json
-{
-  "ok": true
-}
+{ "ok": true }
 ```
-
-#### 错误响应: `404 Not Found`
-
-```json
-{
-  "error": "Memory not found"
-}
-```
-
----
 
 ---
 
 ## MCP API
-
-> **WIP** - 此接口尚未稳定，等待进一步开发。
-
-MCP (Model Context Protocol) 服务器生命周期管理。
 
 ### 连接 MCP 服务器
 
 **端点**: `POST /api/v1/mcp/connect`
 
 **请求体**:
-
 ```json
 {
   "serverId": "filesystem",
@@ -565,56 +338,25 @@ MCP (Model Context Protocol) 服务器生命周期管理。
 ```
 
 **响应**: `200 OK`
-
 ```json
-{
-  "ok": true,
-  "serverId": "filesystem"
-}
+{ "ok": true, "serverId": "filesystem" }
 ```
-
-#### 行为
-
-- `serverId` 省略时自动生成 UUID
-- 已存在的 `serverId` 会先断开旧连接
 
 ---
 
 ### 列出 MCP Tools
 
-获取所有已连接 MCP 服务器的工具。
-
 **端点**: `GET /api/v1/mcp/tools`
 
 **响应**: `200 OK`
-
 ```json
 {
   "tools": [
     {
       "serverId": "filesystem",
-      "tools": [
-        {
-          "name": "mcp__server__read_file",
-          "description": "Read a file from the filesystem",
-          "inputSchema": {
-            "type": "object",
-            "properties": {
-              "path": {"type": "string"}
-            }
-          }
-        }
-      ]
+      "tools": [{ "name": "mcp__server__read_file", "description": "...", "inputSchema": {...} }]
     }
   ]
-}
-```
-
-无服务器连接时返回空数组：
-
-```json
-{
-  "tools": []
 }
 ```
 
@@ -622,37 +364,20 @@ MCP (Model Context Protocol) 服务器生命周期管理。
 
 ### 调用 MCP Tool
 
-直接调用 MCP 工具（不通过 agent）。
-
 **端点**: `POST /api/v1/mcp/tools/call`
 
 **请求体**:
-
 ```json
 {
   "serverId": "filesystem",
   "toolName": "mcp__server__read_file",
-  "toolInput": {
-    "path": "/workspace/test.txt"
-  }
+  "toolInput": { "path": "/workspace/test.txt" }
 }
 ```
 
 **响应**: `200 OK`
-
 ```json
-{
-  "result": "file content here",
-  "isError": false
-}
-```
-
-#### 错误响应: `404 Not Found`
-
-```json
-{
-  "error": "MCP server not found"
-}
+{ "result": "file content here" }
 ```
 
 ---
@@ -662,33 +387,19 @@ MCP (Model Context Protocol) 服务器生命周期管理。
 **端点**: `DELETE /api/v1/mcp/:serverId`
 
 **响应**: `200 OK`
-
 ```json
-{
-  "ok": true
-}
-```
-
-#### 错误响应: `404 Not Found`
-
-```json
-{
-  "error": "MCP server not found"
-}
+{ "ok": true }
 ```
 
 ---
 
 ## Tools API
 
-运行时定义和管理自定义工具。
-
 ### 定义工具
 
 **端点**: `POST /api/v1/tools`
 
 **请求体**:
-
 ```json
 {
   "name": "my-tool",
@@ -701,22 +412,8 @@ MCP (Model Context Protocol) 服务器生命周期管理。
 ```
 
 **响应**: `200 OK`
-
 ```json
-{
-  "ok": true,
-  "toolName": "my-tool"
-}
-```
-
-**支持的类型**: `string`, `number`, `boolean`
-
-#### 错误响应: `400 Bad Request`
-
-```json
-{
-  "error": "name, description, and inputSchema are required"
-}
+{ "ok": true, "toolName": "my-tool" }
 ```
 
 ---
@@ -726,13 +423,8 @@ MCP (Model Context Protocol) 服务器生命周期管理。
 **端点**: `GET /api/v1/tools`
 
 **响应**: `200 OK`
-
 ```json
-{
-  "tools": [
-    { "name": "my-tool", "description": "A custom tool" }
-  ]
-}
+{ "tools": [{ "name": "my-tool", "description": "A custom tool" }] }
 ```
 
 ---
@@ -742,20 +434,8 @@ MCP (Model Context Protocol) 服务器生命周期管理。
 **端点**: `GET /api/v1/tools/:name`
 
 **响应**: `200 OK`
-
 ```json
-{
-  "name": "my-tool",
-  "description": "A custom tool"
-}
-```
-
-#### 错误响应: `404 Not Found`
-
-```json
-{
-  "error": "Tool not found"
-}
+{ "name": "my-tool", "description": "A custom tool" }
 ```
 
 ---
@@ -765,56 +445,26 @@ MCP (Model Context Protocol) 服务器生命周期管理。
 **端点**: `DELETE /api/v1/tools/:name`
 
 **响应**: `200 OK`
-
 ```json
-{
-  "ok": true
-}
-```
-
-#### 错误响应: `404 Not Found`
-
-```json
-{
-  "error": "Tool not found"
-}
+{ "ok": true }
 ```
 
 ---
 
 ## Cost API
 
-成本追踪和模型定价查询。
-
 ### 获取模型定价
 
 **端点**: `GET /api/v1/cost/pricing`
 
-**查询参数**:
-
-| 参数 | 说明 |
-|------|------|
-| `model` | 可选，指定模型获取其定价 |
+**查询参数**: `model` - 可选，指定模型
 
 **响应**: `200 OK`
-
-获取所有模型定价：
-
 ```json
 {
   "models": [
-    { "model": "claude-sonnet-4-6", "pricing": { "input": 0.003, "output": 0.015 } },
-    { "model": "claude-opus-4-6", "pricing": { "input": 0.015, "output": 0.075 } }
+    { "model": "claude-sonnet-4-6", "pricing": { "input": 0.003, "output": 0.015 } }
   ]
-}
-```
-
-获取指定模型定价：
-
-```json
-{
-  "model": "claude-sonnet-4-6",
-  "pricing": { "input": 0.003, "output": 0.015 }
 }
 ```
 
@@ -825,102 +475,54 @@ MCP (Model Context Protocol) 服务器生命周期管理。
 **端点**: `POST /api/v1/cost/calculate`
 
 **请求体**:
-
 ```json
 {
   "model": "claude-sonnet-4-6",
-  "usage": {
-    "inputTokens": 1000,
-    "outputTokens": 500,
-    "cacheCreationInputTokens": 0,
-    "cacheReadInputTokens": 0
-  }
+  "usage": { "inputTokens": 1000, "outputTokens": 500 }
 }
 ```
 
 **响应**: `200 OK`
-
 ```json
-{
-  "model": "claude-sonnet-4-6",
-  "usage": { "inputTokens": 1000, "outputTokens": 500, ... },
-  "costUSD": 0.0135
-}
-```
-
-#### 错误响应: `400 Bad Request`
-
-```json
-{
-  "error": "model and usage are required"
-}
+{ "model": "claude-sonnet-4-6", "usage": {...}, "costUSD": 0.0135 }
 ```
 
 ---
 
 ## Git API
 
-获取 Git 仓库状态。
-
 ### 获取 Git 状态
 
 **端点**: `GET /api/v1/git/state`
 
-**查询参数**:
-
-| 参数 | 说明 |
-|------|------|
-| `path` | 可选，指定仓库路径，默认当前目录 |
+**查询参数**: `path` - 可选，仓库路径
 
 **响应**: `200 OK`
-
 ```json
-{
-  "branch": "main",
-  "clean": false,
-  "ahead": 2,
-  "behind": 0,
-  "status": "modified"
-}
-```
-
-#### 错误响应: `404 Not Found`
-
-```json
-{
-  "error": "Not a git repository"
-}
+{ "branch": "main", "clean": false, "ahead": 2, "behind": 0 }
 ```
 
 ---
 
 ## Skills API
 
-管理和加载 skills 文件。
-
 ### 列出 Skills
 
 **端点**: `GET /api/v1/skills`
 
-**查询参数**:
-
-| 参数 | 说明 |
-|------|------|
-| `path` | 可选，指定 skills 目录，默认 `.claude/skills` |
+**查询参数**: `path` - 可选，skills 目录，默认 `.claude/skills`
 
 **响应**: `200 OK`
-
 ```json
 {
-  "skills": [
-    {
-      "name": "code-review",
-      "description": "Review code changes",
-      "filePath": "/workspace/.claude/skills/code-review.md",
-      "allowedTools": ["Bash", "FileRead"],
-      "arguments": [{ "name": "target", "required": true }]
-    }
-  ]
+  "skills": [{
+    "name": "code-review",
+    "description": "Review code changes",
+    "filePath": "/workspace/.claude/skills/code-review.md",
+    "allowedTools": ["Bash", "FileRead"],
+    "arguments": [{ "name": "target", "required": true }],
+    "context": {}
+  }]
 }
 ```
 
@@ -931,7 +533,6 @@ MCP (Model Context Protocol) 服务器生命周期管理。
 **端点**: `GET /api/v1/skills/:name`
 
 **响应**: `200 OK`
-
 ```json
 {
   "name": "code-review",
@@ -941,135 +542,29 @@ MCP (Model Context Protocol) 服务器生命周期管理。
 }
 ```
 
-#### 错误响应: `404 Not Found`
-
-```json
-{
-  "error": "Skill not found"
-}
-```
-
 ---
 
 ### 展开 Skill 内容
 
-将 skill 模板中的变量替换为实际值。
-
 **端点**: `POST /api/v1/skills/expand`
 
 **请求体**:
-
 ```json
-{
-  "content": "Review {{target}} for bugs",
-  "args": "target=src/main.py"
-}
+{ "content": "Review {{target}} for bugs", "args": "target=src/main.py" }
 ```
 
 **响应**: `200 OK`
-
 ```json
-{
-  "expanded": "Review src/main.py for bugs"
-}
-```
-
-#### 错误响应: `400 Bad Request`
-
-```json
-{
-  "error": "content is required"
-}
+{ "expanded": "Review src/main.py for bugs" }
 ```
 
 ---
 
-## 工具权限
+## 错误响应
 
-Session 创建时可配置工具权限规则。
-
-### 权限模式
-
-| 模式 | 行为 |
-|------|------|
-| `allow` | 工具直接执行，无 WebSocket 事件 |
-| `deny` | 工具被阻止，返回错误 |
-| `ask` | 发送 WebSocket hook 事件等待客户端决策（默认） |
-
-### 配置示例
-
+统一格式：
 ```json
-{
-  "toolPermissions": {
-    "Bash": "deny",
-    "FileWrite": "ask",
-    "FileRead": "allow"
-  }
-}
-```
-
-### 行为
-
-- **未配置的工具**: 默认 `ask` 模式
-- **Deny 响应**: 返回 `{"error": "Tool blocked: denied by policy"}`
-- **Ask 模式超时**: 30 秒后默认为 `allow`
-
----
-
-## 工具预设
-
-Session 创建时可指定工具预设。
-
-### 预设值
-
-| 预设 | 说明 |
-|------|------|
-| `core` | 核心工具（默认） |
-| `extended` | 扩展工具集 |
-| `all` | 所有可用工具 |
-
-### 配置示例
-
-```json
-{
-  "config": {
-    "toolPreset": "extended"
-  }
-}
-```
-
-### 验证
-
-无效的 `toolPreset` 值返回 `400 Bad Request`:
-
-```json
-{
-  "error": "Invalid tool preset. Must be \"core\", \"extended\", or \"all\"."
-}
-```
-
----
-
-## 优雅关闭
-
-服务收到 SIGTERM/SIGTERM 时：
-
-1. 停止接受新请求
-2. 关闭所有 WebSocket 连接
-3. 中止所有活跃 session
-4. 断开所有 MCP 服务器连接
-5. 退出进程
-
----
-
-## 错误响应格式
-
-所有 API 错误遵循统一格式：
-
-```json
-{
-  "error": "错误描述"
-}
+{ "error": "错误描述" }
 ```
 
 | 状态码 | 说明 |
@@ -1077,3 +572,14 @@ Session 创建时可指定工具预设。
 | `400` | 请求参数无效 |
 | `404` | 资源不存在 |
 | `500` | 服务器内部错误 |
+
+---
+
+## 优雅关闭
+
+收到 SIGTERM/SIGINT 时：
+1. 停止接受新请求
+2. 关闭所有 WebSocket 连接
+3. 中止所有活跃 session
+4. 断开所有 MCP 服务器连接
+5. 退出进程
