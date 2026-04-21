@@ -1,6 +1,4 @@
-## Purpose
-
-Per-session workspace isolation via explicit `ToolContext.workspace` configuration. Each session has an isolated workspace directory at `~/.agent-core/workspaces/{sessionId}` and tools access workspace through context rather than global state.
+# Session Workspace Isolation
 
 ## ADDED Requirements
 

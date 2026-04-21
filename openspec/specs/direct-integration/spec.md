@@ -26,24 +26,9 @@ No subprocess spawning, JSON-RPC, or IPC bridge.
 
 ### Requirement: Workspace path validation via path-guard
 
-All file operations SHALL be validated by codenano's built-in `path-guard`:
+Workspace isolation is handled by the `session-workspace-isolation` capability. The `path-guard` module validates paths against the configured workspace.
 
-- `FileReadTool` calls `validatePath(file_path, workspace)`
-- `FileWriteTool` calls `validatePath(file_path, workspace)`
-- `FileEditTool` calls `validatePath(file_path, workspace)`
-- `BashTool` calls `validateBashCommand(command, workspace)`
-
-Workspace is configured via `CODENANO_WORKSPACE` environment variable (default: `/`).
-
-#### Scenario: Path escape attempt blocked
-- **WHEN** agent requests `FileRead` for `/etc/passwd`
-- **AND** workspace is set to `/home/user/project`
-- **THEN** the request is rejected with validation error
-
-#### Scenario: Bash command with dangerous operations blocked
-- **WHEN** agent executes `rm -rf /` via BashTool
-- **THEN** `validateBashCommand` rejects the command
-- **THEN** an error is returned without execution
+See [`session-workspace-isolation`](../session-workspace-isolation/spec.md) for full requirements.
 
 ### Requirement: Session persistence via codenano-native JSONL
 
