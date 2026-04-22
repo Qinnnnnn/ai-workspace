@@ -14,8 +14,8 @@ Currently codenano-cli hardcodes `coreTools()` when creating an agent, making to
 
 - `tool-preset-config`: Allow callers to configure which codenano tool preset is active per session. Three presets are available:
   - `core` (default): FileRead, FileEdit, FileWrite, Glob, Grep, Bash (6 tools)
-  - `extended`: core + NotebookEdit, WebFetch, Brief, Tasks, Todos (16 tools)
-  - `all`: extended + WebSearch, LSP, Agent, AskUser, Skill (21 tools, includes stubs)
+  - `extended`: core + WebFetch, Tasks, Todos (13 tools)
+  - `all`: extended + WebSearch, LSP, Agent, AskUser, Skill (18 tools, includes stubs)
 
 ### Modified Capabilities
 

@@ -3,8 +3,8 @@
 codenano-cli spawns a Node.js subprocess and creates a codenano Agent via JSON-RPC. When initializing, it hardcodes `createAgent({ tools: coreTools() })`, making tools non-configurable. The codenano library defines three preset tool sets:
 
 - `coreTools()` — 6 tools: FileRead, FileEdit, FileWrite, Glob, Grep, Bash
-- `extendedTools()` — 16 tools: core + NotebookEdit, WebFetch, Brief, Tasks, Todos
-- `allTools()` — 21 tools: extended + WebSearch, LSP, Agent, AskUser, Skill
+- `extendedTools()` — 11 tools: core + WebFetch, Tasks, Todos
+- `allTools()` — 18 tools: extended + WebSearch, LSP, Agent, AskUser, Skill
 
 The codenano-service API creates sessions and passes configuration to codenano-cli via the `init` RPC call, but does not currently pass tool configuration.
 
