@@ -9,6 +9,7 @@ import {
 import { relativeTime } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import type { SessionSummary } from '@/lib/types'
+import { i18n } from '@/lib/i18n'
 
 interface ChatListProps {
   sessions: SessionSummary[]
@@ -25,11 +26,11 @@ function titleFor(s: SessionSummary, fallbackTitle: string): string {
 
 export function ChatList({ sessions, activeId, onSelect, onRequestDelete, loading }: ChatListProps) {
   if (loading && sessions.length === 0) {
-    return <div className="px-3 py-6 text-[12px] text-muted-foreground">Loading…</div>
+    return <div className="px-3 py-6 text-[12px] text-muted-foreground">{i18n.loading}</div>
   }
 
   if (sessions.length === 0) {
-    return <div className="px-3 py-6 text-xs text-muted-foreground">No conversations yet</div>
+    return <div className="px-3 py-6 text-xs text-muted-foreground">{i18n.noConversationsYet}</div>
   }
 
   return (
@@ -55,7 +56,7 @@ export function ChatList({ sessions, activeId, onSelect, onRequestDelete, loadin
                 >
                   <span className="w-full truncate font-medium leading-5">{label}</span>
                   <span className="text-[10.5px] text-muted-foreground/80">
-                    {relativeTime(s.lastActivity ?? s.createdAt) || '—'}
+                    {relativeTime(s.lastActivity ?? s.createdAt, 'zh') || '—'}
                   </span>
                 </button>
                 <DropdownMenu modal={false}>
@@ -78,7 +79,7 @@ export function ChatList({ sessions, activeId, onSelect, onRequestDelete, loadin
                       className="text-destructive focus:text-destructive"
                     >
                       <Trash2 className="mr-2 h-4 w-4" />
-                      Delete
+                      {i18n.delete}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>

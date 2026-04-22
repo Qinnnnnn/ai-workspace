@@ -3,6 +3,7 @@ import { ChevronRight, Wrench, AlertCircle, CheckCircle2, Brain, Loader2 } from 
 import { MarkdownText } from '@/components/MarkdownText'
 import { cn } from '@/lib/utils'
 import type { UIMessage, ContentBlock } from '@/lib/types'
+import { i18n } from '@/lib/i18n'
 
 // ==========================================
 // 1. 思考过程组件 (轻量化胶囊设计)
@@ -100,7 +101,7 @@ function ToolActionBlock({ block }: { block: ToolUseBlock }) {
         </span>
 
         <span className="ml-1 text-[10px] text-muted-foreground/60 font-medium">
-          {isPending ? 'running...' : isError ? 'failed' : '0.4s'}
+          {isPending ? i18n.running : isError ? i18n.failed : '0.4s'}
         </span>
 
         <ChevronRight className={cn('ml-auto h-3.5 w-3.5 text-muted-foreground/50 shrink-0 transition-transform duration-300 ease-out', open ? 'rotate-90' : '')} />
@@ -114,7 +115,7 @@ function ToolActionBlock({ block }: { block: ToolUseBlock }) {
             <div className="px-4 py-3 border-b border-white/5 overflow-x-auto">
               <div className="flex items-center gap-2 mb-2">
                 <div className="w-1.5 h-1.5 rounded-full bg-white/20" />
-                <span className="text-[10px] uppercase font-bold tracking-wider text-white/40">Input</span>
+                <span className="text-[10px] uppercase font-bold tracking-wider text-white/40">{i18n.input}</span>
               </div>
               <pre className="text-[12px] font-mono leading-relaxed text-white/80 whitespace-pre-wrap break-words">{formattedInput}</pre>
             </div>

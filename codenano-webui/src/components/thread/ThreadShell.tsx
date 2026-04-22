@@ -4,6 +4,7 @@ import { MessageList } from '@/components/MessageList'
 import { Composer } from '@/components/Composer'
 import { preloadMarkdownText } from '@/components/MarkdownText'
 import type { SessionSummary, UIMessage } from '@/lib/types'
+import { i18n } from '@/lib/i18n'
 
 interface ThreadShellProps {
   session: SessionSummary | null
@@ -76,7 +77,7 @@ export function ThreadShell({
         <>
           {isLoadingHistory ? (
             <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-              Loading conversation…
+              {i18n.loadingConversation}
             </div>
           ) : (
             <>
@@ -84,7 +85,7 @@ export function ThreadShell({
               <Composer
                 onSend={onSend}
                 disabled={!session || isStreaming}
-                placeholder={isStreaming ? 'Waiting for response…' : 'Type your message…'}
+                placeholder={isStreaming ? i18n.waitingForResponse : i18n.typeYourMessage}
                 variant="thread"
               />
             </>
@@ -104,10 +105,10 @@ export function ThreadShell({
                 />
               </picture>
               <h1 className="text-xl font-medium tracking-tight text-foreground/90">
-                What's on your mind?
+                {i18n.whatsOnYourMind}
               </h1>
               <p className="max-w-md text-center text-sm text-muted-foreground">
-                Your conversations are persisted on the server. Start typing to begin.
+                {i18n.conversationsPersisted}
               </p>
             </div>
             <div className="w-full animate-in fade-in-0 slide-in-from-bottom-2 duration-500">
@@ -115,7 +116,7 @@ export function ThreadShell({
                 compact
                 disabled={booting}
                 onSend={handleWelcomeSend}
-                placeholder={booting ? 'Opening a new chat…' : 'Type your message…'}
+                placeholder={booting ? i18n.openingNewChat : i18n.typeYourMessage}
                 variant="hero"
               />
             </div>

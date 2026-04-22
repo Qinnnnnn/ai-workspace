@@ -11,6 +11,7 @@ import { useStream } from '@/hooks/useStream'
 import { getSessionHistory } from '@/api/sessions'
 import type { SessionSummary, StreamEvent, UIMessage } from '@/lib/types'
 import { cn } from '@/lib/utils'
+import { i18n } from '@/lib/i18n'
 
 const SIDEBAR_STORAGE_KEY = 'codenano-webui.sidebar'
 const SIDEBAR_WIDTH = 279
@@ -343,19 +344,19 @@ export default function App() {
       {pendingDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-background rounded-lg border p-6 shadow-lg max-w-sm mx-auto">
-            <h2 className="text-lg font-semibold mb-2">Delete conversation?</h2>
+            <h2 className="text-lg font-semibold mb-2">{i18n.deleteConversation}</h2>
             <p className="text-sm text-muted-foreground mb-4">
-              Are you sure you want to delete "{pendingDelete.label}"? This cannot be undone.
+              {i18n.deleteConfirm.replace('{label}', pendingDelete.label)}
             </p>
             <div className="flex gap-2 justify-end">
               <Button variant="outline" onClick={() => setPendingDelete(null)}>
-                Cancel
+                {i18n.cancel}
               </Button>
               <Button
                 variant="destructive"
                 onClick={() => void handleConfirmDelete()}
               >
-                Delete
+                {i18n.delete}
               </Button>
             </div>
           </div>
@@ -420,12 +421,12 @@ function SidebarInner({
           variant="outline"
         >
           <Plus className="h-3.5 w-3.5" />
-          New Chat
+          {i18n.newChat}
         </Button>
       </div>
       <Separator className="bg-sidebar-border/70" />
       <div className="flex items-center justify-between px-2.5 py-2 text-xs font-medium text-muted-foreground">
-        <span>Recent</span>
+        <span>{i18n.recent}</span>
         <Button
           variant="ghost"
           size="icon"
