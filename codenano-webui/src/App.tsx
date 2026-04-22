@@ -176,8 +176,8 @@ export default function App() {
       try {
         const res = await getSessionHistory(sessionId)
         const msgs: UIMessage[] = res.history.map((h, i) => {
-          const role = h.role as 'user' | 'assistant'
-          const content = typeof h.content === 'string' ? h.content : JSON.stringify(h.content)
+          const role = h.role as 'user' | 'assistant' | 'tool'
+          const content = h.content
           return { id: `${sessionId}-${i}`, role, content, createdAt: Date.now() }
         })
         setHistoryMessages((prev) => ({ ...prev, [sessionId]: msgs }))

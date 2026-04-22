@@ -31,9 +31,15 @@ export interface Usage {
 
 export type MessageParam = { role: 'user' | 'assistant' | 'tool' | 'system'; content: string | ContentBlock[] }
 
+export interface ToolResultBlock {
+  tool_use_id: string
+  content: string
+  is_error?: boolean
+}
+
 export type ContentBlock =
   | { type: 'text'; text: string }
-  | { type: 'tool_use'; id: string; name: string; input: unknown }
+  | { type: 'tool_use'; id: string; name: string; input: unknown; result?: ToolResultBlock }
   | { type: 'tool_result'; tool_use_id: string; content: string; is_error?: boolean }
   | { type: 'thinking'; thinking: string }
 
@@ -56,7 +62,8 @@ export type Role = 'user' | 'assistant' | 'tool' | 'system'
 export interface UIMessage {
   id: string
   role: Role
-  content: string
+  // ✨ 核心：让 UI 状态支持渲染富文本 Block 数组
+  content: string | ContentBlock[]
   isStreaming?: boolean
   createdAt: number
   traces?: string[]
