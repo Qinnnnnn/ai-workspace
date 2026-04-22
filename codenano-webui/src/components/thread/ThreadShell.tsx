@@ -5,11 +5,6 @@ import { Composer } from '@/components/Composer'
 import { preloadMarkdownText } from '@/components/MarkdownText'
 import type { SessionSummary, UIMessage } from '@/lib/types'
 
-interface ModelOption {
-  id: string
-  name: string
-}
-
 interface ThreadShellProps {
   session: SessionSummary | null
   title: string
@@ -20,10 +15,6 @@ interface ThreadShellProps {
   isStreaming: boolean
   isLoadingHistory: boolean
   onSend: (content: string) => void
-  modelLabel?: string | null
-  models?: readonly ModelOption[]
-  selectedModel?: string
-  onModelChange?: (modelId: string) => void
 }
 
 export function ThreadShell({
@@ -36,14 +27,9 @@ export function ThreadShell({
   isStreaming,
   isLoadingHistory,
   onSend,
-  modelLabel,
-  models,
-  selectedModel,
-  onModelChange,
 }: ThreadShellProps) {
   const [booting, setBooting] = useState(false)
   const pendingFirstRef = useRef<string | null>(null)
-  const showHeroComposer = messages.length === 0 && !isLoadingHistory && !session
 
   const handleWelcomeSend = useCallback(
     async (content: string) => {
@@ -85,29 +71,27 @@ export function ThreadShell({
         title={title}
         onToggleSidebar={onToggleSidebar}
         onGoHome={onGoHome}
-        models={models}
-        selectedModel={selectedModel}
-        onModelChange={onModelChange}
       />
       {session ? (
-        <>
-          {isLoadingHistory ? (
-            <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-              Loading conversation…
+        isLoadingHistory ? (
+          <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+            Loading conversation…
+          </div>
+        ) : (
+          <div className="relative flex min-h-0 flex-1 overflow-hidden">
+            <MessageList messages={messages} isStreaming={isStreaming} />
+            <div className="sticky bottom-0 z-10 mt-auto">
+              <div className="px-4 pb-3">
+                <Composer
+                  onSend={onSend}
+                  disabled={!session || isStreaming}
+                  placeholder={isStreaming ? 'Waiting for response…' : 'Type your message…'}
+                  variant="thread"
+                />
+              </div>
             </div>
-          ) : (
-            <>
-              <MessageList messages={messages} isStreaming={isStreaming} />
-              <Composer
-                onSend={onSend}
-                disabled={!session || isStreaming}
-                placeholder={isStreaming ? 'Waiting for response…' : 'Type your message…'}
-                modelLabel={modelLabel}
-                variant={showHeroComposer ? 'hero' : 'thread'}
-              />
-            </>
-          )}
-        </>
+          </div>
+        )
       ) : (
         <>
           <div className="flex flex-1 flex-col items-center justify-center gap-8 px-4 pb-6">

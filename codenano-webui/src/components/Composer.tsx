@@ -8,7 +8,6 @@ interface ComposerProps {
   disabled?: boolean
   placeholder?: string
   compact?: boolean
-  modelLabel?: string | null
   variant?: 'thread' | 'hero'
 }
 
@@ -17,7 +16,6 @@ export function Composer({
   disabled,
   placeholder = 'Type your message…',
   compact = false,
-  modelLabel = null,
   variant = 'thread',
 }: ComposerProps) {
   const [value, setValue] = useState('')
@@ -101,18 +99,6 @@ export function Composer({
           className={cn('flex items-center justify-between gap-2', isHero ? 'px-3.5 pb-3.5' : 'px-3 pb-2')}
         >
           <div className="flex min-w-0 items-center gap-2">
-            {modelLabel ? (
-              <span
-                className={cn(
-                  'inline-flex min-w-0 items-center gap-1.5 rounded-full border px-2.5 py-1',
-                  'border-foreground/10 bg-foreground/[0.035] font-medium text-foreground/80',
-                  isHero ? 'text-[11px]' : 'text-[10.5px]',
-                )}
-              >
-                <span aria-hidden className="h-1.5 w-1.5 flex-none rounded-full bg-emerald-500/80" />
-                <span className="truncate">{modelLabel}</span>
-              </span>
-            ) : null}
             <span className="hidden select-none text-[10.5px] text-muted-foreground/60 sm:inline">
               Enter to send · Shift+Enter for newline
             </span>

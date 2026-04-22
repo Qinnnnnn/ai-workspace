@@ -51,14 +51,14 @@ export function MessageList({ messages, isStreaming }: MessageListProps) {
       <div
         ref={scrollRef}
         className={cn(
-          'h-full overflow-y-auto scroll-smooth',
+          'absolute inset-0 overflow-y-auto scroll-smooth',
           '[&::-webkit-scrollbar]:w-1.5',
           '[&::-webkit-scrollbar-thumb]:rounded-full',
           '[&::-webkit-scrollbar-thumb]:bg-muted-foreground/30',
           '[&::-webkit-scrollbar-track]:bg-transparent',
         )}
       >
-        <div className="mx-auto flex w-full max-w-[64rem] flex-col gap-6 px-4 pt-4 pb-8">
+        <div className="mx-auto flex w-full max-w-[64rem] flex-col gap-5 px-4 pt-4 pb-20">
           {messages.map((m) => (
             <MessageBubble key={m.id} message={m} />
           ))}
@@ -69,10 +69,6 @@ export function MessageList({ messages, isStreaming }: MessageListProps) {
         aria-hidden
         className="pointer-events-none absolute inset-x-0 top-0 h-6 bg-gradient-to-b from-background to-transparent"
       />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-background to-transparent"
-      />
 
       {!atBottom && (
         <Button
@@ -80,7 +76,7 @@ export function MessageList({ messages, isStreaming }: MessageListProps) {
           size="icon"
           onClick={() => scrollToBottom(true)}
           className={cn(
-            'absolute bottom-2 left-1/2 h-8 w-8 -translate-x-1/2 rounded-full shadow-md',
+            'absolute bottom-28 left-1/2 h-8 w-8 -translate-x-1/2 rounded-full shadow-md',
             'bg-background/90 backdrop-blur',
             'animate-in fade-in-0 zoom-in-95',
           )}

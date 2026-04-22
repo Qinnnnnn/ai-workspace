@@ -15,12 +15,6 @@ import { cn } from '@/lib/utils'
 const SIDEBAR_STORAGE_KEY = 'codenano-webui.sidebar'
 const SIDEBAR_WIDTH = 279
 
-const AVAILABLE_MODELS = [
-  { id: 'claude-sonnet-4-6', name: 'Claude Sonnet 4' },
-  { id: 'claude-opus-4-7', name: 'Claude Opus 4' },
-  { id: 'claude-haiku-4-5', name: 'Claude Haiku 4' },
-] as const
-
 function readSidebarOpen(): boolean {
   if (typeof window === 'undefined') return true
   try {
@@ -52,7 +46,6 @@ export default function App() {
   // Per-session chat state
   const [sessionMessages, setSessionMessages] = useState<Record<string, UIMessage[]>>({})
   const [sessionStreaming, setSessionStreaming] = useState<Record<string, boolean>>({})
-  const [selectedModel, setSelectedModel] = useState<string>('claude-sonnet-4-6')
 
   // Active session
   const activeSession = useMemo<SessionSummary | null>(() => {
@@ -215,14 +208,14 @@ export default function App() {
 
   // Create new chat
   const handleNewChat = useCallback(async (): Promise<string | null> => {
-    const id = await create({ model: selectedModel })
+    const id = await create({})
     if (id) {
       setActiveId(id)
       setSessionMessages((prev) => ({ ...prev, [id]: [] }))
       setMobileSidebarOpen(false)
     }
     return id
-  }, [create, selectedModel])
+  }, [create])
 
   // Send message
   const handleSend = useCallback(
@@ -343,10 +336,6 @@ export default function App() {
           isStreaming={isCurrentlyStreaming}
           isLoadingHistory={isLoadingHistory}
           onSend={activeSession ? handleSend : handleWelcomeSend}
-          models={AVAILABLE_MODELS}
-          selectedModel={selectedModel}
-          onModelChange={setSelectedModel}
-          modelLabel={selectedModel}
         />
       </main>
 
