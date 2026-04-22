@@ -89,7 +89,7 @@ export function Composer({
             'w-full resize-none bg-transparent',
             isHero
               ? 'min-h-[96px] px-4 pb-2 pt-4 text-[15px] leading-6'
-              : 'min-h-[50px] px-4 pb-1.5 pt-3 text-sm',
+              : 'min-h-[50px] px-4 pb-1.5 pt-3 text-[15px]',
             'placeholder:text-muted-foreground',
             'focus:outline-none focus-visible:outline-none',
             'disabled:cursor-not-allowed',

@@ -66,7 +66,7 @@ export function ThreadShell({
   }, [])
 
   return (
-    <section className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
+    <section className="relative flex min-h-0 flex-1 flex-col overflow-hidden pb-8">
       <ThreadHeader
         title={title}
         onToggleSidebar={onToggleSidebar}

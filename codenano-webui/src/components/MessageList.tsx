@@ -53,14 +53,14 @@ export function MessageList({ messages, isStreaming }: MessageListProps) {
       <div
         ref={scrollRef}
         className={cn(
-          'h-full overflow-y-auto scroll-smooth',
+          'h-full w-full overflow-y-auto scroll-smooth',
           '[&::-webkit-scrollbar]:w-1.5',
           '[&::-webkit-scrollbar-thumb]:rounded-full',
           '[&::-webkit-scrollbar-thumb]:bg-muted-foreground/30',
           '[&::-webkit-scrollbar-track]:bg-transparent',
         )}
       >
-        <div className="mx-auto flex w-full max-w-[64rem] flex-col gap-6 px-4 pt-4 pb-8">
+        <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 pt-4 pb-8">
           {normalizedMessages.map((m) => (
             <MessageBubble key={m.id} message={m} />
           ))}
