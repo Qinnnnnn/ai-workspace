@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { uuid } from '@/lib/uuid'
 import { Moon, PanelLeftClose, Plus, RefreshCcw, Sun } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
@@ -74,7 +75,7 @@ export default function App() {
             ...prev,
             [activeId]: [
               ...msgs,
-              { id: crypto.randomUUID(), role: 'assistant', content: text, isStreaming: true, createdAt: Date.now() },
+              { id: uuid(), role: 'assistant', content: text, isStreaming: true, createdAt: Date.now() },
             ],
           }
         })
@@ -132,7 +133,7 @@ export default function App() {
             [activeId]: [
               ...msgs,
               {
-                id: crypto.randomUUID(),
+                id: uuid(),
                 role: 'assistant',
                 content: `Error: ${error}`,
                 isStreaming: false,
@@ -227,7 +228,7 @@ export default function App() {
   const handleSend = useCallback(
     async (content: string) => {
       if (!activeId) return
-      const userMsg: UIMessage = { id: crypto.randomUUID(), role: 'user', content, createdAt: Date.now() }
+      const userMsg: UIMessage = { id: uuid(), role: 'user', content, createdAt: Date.now() }
       setSessionMessages((prev) => ({
         ...prev,
         [activeId]: [...(prev[activeId] ?? []), userMsg],
@@ -255,7 +256,7 @@ export default function App() {
     if (!activeId || !pendingFirstRef.current) return
     const content = pendingFirstRef.current
     pendingFirstRef.current = null
-    const userMsg: UIMessage = { id: crypto.randomUUID(), role: 'user', content, createdAt: Date.now() }
+    const userMsg: UIMessage = { id: uuid(), role: 'user', content, createdAt: Date.now() }
     setSessionMessages((prev) => ({
       ...prev,
       [activeId]: [...(prev[activeId] ?? []), userMsg],
