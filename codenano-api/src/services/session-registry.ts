@@ -1,4 +1,5 @@
 import type { Agent, Session } from 'codenano'
+import { getSessionStorageDir } from 'codenano'
 import type { ToolPermission } from '../types/index.js'
 import fs from 'fs'
 import path from 'path'
@@ -95,6 +96,13 @@ export class SessionRegistry {
       entry.session.abort()
     } catch {
       // Ignore abort errors
+    }
+
+    // Delete session JSONL file
+    try {
+      fs.rmSync(path.join(getSessionStorageDir(), `${sessionId}.jsonl`), { force: true })
+    } catch {
+      // Ignore cleanup errors
     }
 
     // Delete workspace directory
