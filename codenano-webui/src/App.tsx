@@ -90,7 +90,13 @@ export default function App() {
             content.push({ type: 'thinking', thinking })
             return { ...prev, [activeId]: [...msgs.slice(0, -1), { ...last, content }] }
           }
-          return prev
+          return {
+            ...prev,
+            [activeId]: [
+              ...msgs,
+              { id: uuid(), role: 'assistant', content: [{ type: 'thinking', thinking }], isStreaming: true, createdAt: Date.now() },
+            ],
+          }
         })
       },
       onToolUse: (event: Extract<StreamEvent, { type: 'tool_use' }>) => {
@@ -103,7 +109,13 @@ export default function App() {
             content.push({ type: 'tool_use', id: event.toolUseId, name: event.toolName, input: event.input })
             return { ...prev, [activeId]: [...msgs.slice(0, -1), { ...last, content }] }
           }
-          return prev
+          return {
+            ...prev,
+            [activeId]: [
+              ...msgs,
+              { id: uuid(), role: 'assistant', content: [{ type: 'tool_use', id: event.toolUseId, name: event.toolName, input: event.input }], isStreaming: true, createdAt: Date.now() },
+            ],
+          }
         })
       },
       onToolResult: (event: Extract<StreamEvent, { type: 'tool_result' }>) => {
