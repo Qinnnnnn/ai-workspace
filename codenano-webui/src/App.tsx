@@ -9,12 +9,11 @@ import { ThreadShell } from '@/components/thread/ThreadShell'
 import { useSessions } from '@/hooks/useSessions'
 import { useStream } from '@/hooks/useStream'
 import { getSessionHistory } from '@/api/sessions'
-import type { SessionSummary, StreamEvent, UIMessage } from '@/lib/types'
+import type { ContentBlock, SessionSummary, StreamEvent, UIMessage } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { i18n } from '@/lib/i18n'
 
 const SIDEBAR_STORAGE_KEY = 'codenano-webui.sidebar'
-const SIDEBAR_WIDTH = 279
 
 function readSidebarOpen(): boolean {
   if (typeof window === 'undefined') return true
@@ -63,56 +62,78 @@ export default function App() {
           const msgs = prev[activeId] ?? []
           const last = msgs[msgs.length - 1]
           if (last && last.role === 'assistant' && last.isStreaming) {
-            return { ...prev, [activeId]: [...msgs.slice(0, -1), { ...last, content: last.content + text }] }
+            const content = Array.isArray(last.content) ? last.content : [{ type: 'text' as const, text: last.content }]
+            const lastBlock = content[content.length - 1]
+            if (lastBlock && lastBlock.type === 'text') {
+              lastBlock.text += text
+            } else {
+              content.push({ type: 'text', text })
+            }
+            return { ...prev, [activeId]: [...msgs.slice(0, -1), { ...last, content }] }
           }
           return {
             ...prev,
             [activeId]: [
               ...msgs,
-              { id: uuid(), role: 'assistant', content: text, isStreaming: true, createdAt: Date.now() },
+              { id: uuid(), role: 'assistant', content: [{ type: 'text', text }], isStreaming: true, createdAt: Date.now() },
             ],
           }
         })
       },
-      onThinking: (_text: string) => {
-        // Could render thinking in a separate expandable section
-      },
-      onToolUse: (event: Extract<StreamEvent, { type: 'tool_use' }>) => {
-        if (!activeId) return
-        // Add a tool trace to current assistant message
-        setSessionMessages((prev) => {
-          const msgs = prev[activeId] ?? []
-          const last = msgs[msgs.length - 1]
-          if (last && last.role === 'assistant') {
-            return {
-              ...prev,
-              [activeId]: [
-                ...msgs.slice(0, -1),
-                {
-                  ...last,
-                  traces: [...(last.traces ?? []), `${event.toolName}(${JSON.stringify(event.input)})`],
-                },
-              ],
-            }
-          }
-          return prev
-        })
-      },
-      onToolResult: (_event: Extract<StreamEvent, { type: 'tool_result' }>) => {
-        // Tool result is included in the trace
-      },
-      onDone: (finalText: string) => {
+      onThinking: (thinking: string) => {
         if (!activeId) return
         setSessionMessages((prev) => {
           const msgs = prev[activeId] ?? []
           const last = msgs[msgs.length - 1]
           if (last && last.role === 'assistant' && last.isStreaming) {
-            return { ...prev, [activeId]: [...msgs.slice(0, -1), { ...last, content: finalText, isStreaming: false }] }
+            const content = Array.isArray(last.content) ? last.content : [{ type: 'text' as const, text: String(last.content) }]
+            content.push({ type: 'thinking', thinking })
+            return { ...prev, [activeId]: [...msgs.slice(0, -1), { ...last, content }] }
+          }
+          return prev
+        })
+      },
+      onToolUse: (event: Extract<StreamEvent, { type: 'tool_use' }>) => {
+        if (!activeId) return
+        setSessionMessages((prev) => {
+          const msgs = prev[activeId] ?? []
+          const last = msgs[msgs.length - 1]
+          if (last && last.role === 'assistant' && last.isStreaming) {
+            const content = Array.isArray(last.content) ? last.content : [{ type: 'text' as const, text: String(last.content) }]
+            content.push({ type: 'tool_use', id: event.toolUseId, name: event.toolName, input: event.input })
+            return { ...prev, [activeId]: [...msgs.slice(0, -1), { ...last, content }] }
+          }
+          return prev
+        })
+      },
+      onToolResult: (event: Extract<StreamEvent, { type: 'tool_result' }>) => {
+        if (!activeId) return
+        setSessionMessages((prev) => {
+          const msgs = prev[activeId] ?? []
+          const last = msgs[msgs.length - 1]
+          if (last && last.role === 'assistant' && last.isStreaming && Array.isArray(last.content)) {
+            const content = [...last.content]
+            const toolIdx = content.findIndex((b) => b.type === 'tool_use' && b.id === event.toolUseId)
+            if (toolIdx !== -1) {
+              const toolBlock = content[toolIdx] as Extract<ContentBlock, { type: 'tool_use' }>
+              content[toolIdx] = { ...toolBlock, result: { tool_use_id: event.toolUseId, content: event.output, is_error: event.isError } }
+            }
+            return { ...prev, [activeId]: [...msgs.slice(0, -1), { ...last, content }] }
+          }
+          return prev
+        })
+      },
+      onDone: () => {
+        if (!activeId) return
+        setSessionMessages((prev) => {
+          const msgs = prev[activeId] ?? []
+          const last = msgs[msgs.length - 1]
+          if (last && last.role === 'assistant' && last.isStreaming) {
+            return { ...prev, [activeId]: [...msgs.slice(0, -1), { ...last, isStreaming: false }] }
           }
           return prev
         })
         setSessionStreaming((prev) => ({ ...prev, [activeId]: false }))
-        // Cache updated messages
         if (activeId) {
           const msgs = sessionMessages[activeId] ?? []
           messageCacheRef.current.set(activeId, msgs)
@@ -129,7 +150,7 @@ export default function App() {
               {
                 id: uuid(),
                 role: 'assistant',
-                content: `Error: ${error}`,
+                content: [{ type: 'text', text: `Error: ${error}` }],
                 isStreaming: false,
                 createdAt: Date.now(),
               },
