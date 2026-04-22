@@ -8,6 +8,7 @@ interface MessageBubbleProps {
   message: UIMessage
 }
 
+/** Blinking cursor appended at the end of streaming text. */
 function StreamCursor() {
   return (
     <span
@@ -19,6 +20,7 @@ function StreamCursor() {
   )
 }
 
+/** Pre-token-arrival placeholder: three bouncing dots. */
 function TypingDots() {
   return (
     <span className="inline-flex items-center gap-1 py-1">
@@ -102,6 +104,7 @@ export function MessageBubble({ message }: MessageBubbleProps) {
     )
   }
 
+  // assistant role
   const empty = message.content.trim().length === 0
   return (
     <div className={cn('w-full text-sm')} style={{ lineHeight: 'var(--cjk-line-height, 1.6)' }}>

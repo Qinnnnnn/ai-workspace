@@ -73,25 +73,23 @@ export function ThreadShell({
         onGoHome={onGoHome}
       />
       {session ? (
-        isLoadingHistory ? (
-          <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-            Loading conversation…
-          </div>
-        ) : (
-          <div className="relative flex min-h-0 flex-1 overflow-hidden">
-            <MessageList messages={messages} isStreaming={isStreaming} />
-            <div className="sticky bottom-0 z-10 mt-auto">
-              <div className="px-4 pb-3">
-                <Composer
-                  onSend={onSend}
-                  disabled={!session || isStreaming}
-                  placeholder={isStreaming ? 'Waiting for response…' : 'Type your message…'}
-                  variant="thread"
-                />
-              </div>
+        <>
+          {isLoadingHistory ? (
+            <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+              Loading conversation…
             </div>
-          </div>
-        )
+          ) : (
+            <>
+              <MessageList messages={messages} isStreaming={isStreaming} />
+              <Composer
+                onSend={onSend}
+                disabled={!session || isStreaming}
+                placeholder={isStreaming ? 'Waiting for response…' : 'Type your message…'}
+                variant="thread"
+              />
+            </>
+          )}
+        </>
       ) : (
         <>
           <div className="flex flex-1 flex-col items-center justify-center gap-8 px-4 pb-6">
