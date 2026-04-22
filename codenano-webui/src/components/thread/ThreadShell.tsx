@@ -5,6 +5,11 @@ import { Composer } from '@/components/Composer'
 import { preloadMarkdownText } from '@/components/MarkdownText'
 import type { SessionSummary, UIMessage } from '@/lib/types'
 
+interface ModelOption {
+  id: string
+  name: string
+}
+
 interface ThreadShellProps {
   session: SessionSummary | null
   title: string
@@ -16,6 +21,9 @@ interface ThreadShellProps {
   isLoadingHistory: boolean
   onSend: (content: string) => void
   modelLabel?: string | null
+  models?: readonly ModelOption[]
+  selectedModel?: string
+  onModelChange?: (modelId: string) => void
 }
 
 export function ThreadShell({
@@ -29,6 +37,9 @@ export function ThreadShell({
   isLoadingHistory,
   onSend,
   modelLabel,
+  models,
+  selectedModel,
+  onModelChange,
 }: ThreadShellProps) {
   const [booting, setBooting] = useState(false)
   const pendingFirstRef = useRef<string | null>(null)
@@ -74,6 +85,9 @@ export function ThreadShell({
         title={title}
         onToggleSidebar={onToggleSidebar}
         onGoHome={onGoHome}
+        models={models}
+        selectedModel={selectedModel}
+        onModelChange={onModelChange}
       />
       {session ? (
         <>
