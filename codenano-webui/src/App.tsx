@@ -86,8 +86,14 @@ export default function App() {
           const msgs = prev[activeId] ?? []
           const last = msgs[msgs.length - 1]
           if (last && last.role === 'assistant' && last.isStreaming) {
-            const content = Array.isArray(last.content) ? last.content : [{ type: 'text' as const, text: String(last.content) }]
-            content.push({ type: 'thinking', thinking })
+            const content = Array.isArray(last.content) ? [...last.content] : [{ type: 'text' as const, text: String(last.content) }]
+            // Append to last thinking block if it exists, otherwise create new one
+            const lastBlock = content[content.length - 1]
+            if (lastBlock && lastBlock.type === 'thinking') {
+              lastBlock.thinking += thinking
+            } else {
+              content.push({ type: 'thinking', thinking })
+            }
             return { ...prev, [activeId]: [...msgs.slice(0, -1), { ...last, content }] }
           }
           return {
@@ -105,8 +111,15 @@ export default function App() {
           const msgs = prev[activeId] ?? []
           const last = msgs[msgs.length - 1]
           if (last && last.role === 'assistant' && last.isStreaming) {
-            const content = Array.isArray(last.content) ? last.content : [{ type: 'text' as const, text: String(last.content) }]
-            content.push({ type: 'tool_use', id: event.toolUseId, name: event.toolName, input: event.input })
+            const content = Array.isArray(last.content) ? [...last.content] : [{ type: 'text' as const, text: String(last.content) }]
+            // Update existing tool_use block if same ID exists (backend sends tool_use twice: without input first, then with input)
+            const existingIdx = content.findIndex((b) => b.type === 'tool_use' && b.id === event.toolUseId)
+            if (existingIdx !== -1) {
+              const existing = content[existingIdx] as Extract<ContentBlock, { type: 'tool_use' }>
+              content[existingIdx] = { ...existing, name: event.toolName, input: event.input }
+            } else {
+              content.push({ type: 'tool_use', id: event.toolUseId, name: event.toolName, input: event.input })
+            }
             return { ...prev, [activeId]: [...msgs.slice(0, -1), { ...last, content }] }
           }
           return {
