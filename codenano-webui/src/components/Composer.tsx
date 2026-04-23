@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { ArrowUp } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { i18n } from '@/lib/i18n'
 
 interface ComposerProps {
   onSend: (content: string) => void
@@ -100,7 +101,7 @@ export function Composer({
         >
           <div className="flex min-w-0 items-center gap-2">
             <span className="hidden select-none text-[10.5px] text-muted-foreground/60 sm:inline">
-              Enter to send · Shift+Enter for newline
+              {i18n.enterToSend}
             </span>
           </div>
           <span className="sm:hidden" aria-hidden />

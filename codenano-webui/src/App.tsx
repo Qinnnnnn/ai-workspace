@@ -402,48 +402,58 @@ interface SidebarInnerProps {
 }
 
 function SidebarInner({
-  sessions, activeId, loading, theme, onToggleTheme, 
+  sessions, activeId, loading, theme, onToggleTheme,
   onNewChat, onSelect, onRefresh, onRequestDelete, onCollapse,
 }: SidebarInnerProps) {
   return (
     <aside className="flex h-full w-full flex-col text-sidebar-foreground">
+      {/* 顶部按钮组 */}
       <div className="flex items-center justify-between px-3 py-3">
         <Button
           variant="ghost" size="icon"
-          className="h-8 w-8 rounded-lg text-muted-foreground hover:bg-sidebar-accent"
+          className="h-8 w-8 rounded-lg text-muted-foreground/70 hover:bg-sidebar-accent hover:text-foreground transition-colors"
           onClick={onCollapse}
         >
           <PanelLeftClose className="h-4 w-4" />
         </Button>
         <Button
           variant="ghost" size="icon"
-          className="h-8 w-8 rounded-lg text-muted-foreground hover:bg-sidebar-accent"
+          className="h-8 w-8 rounded-lg text-muted-foreground/70 hover:bg-sidebar-accent hover:text-foreground transition-colors"
           onClick={onToggleTheme}
         >
           {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
         </Button>
       </div>
+
+      {/* 新建对话按钮 */}
       <div className="px-3 pb-3">
         <Button
           onClick={onNewChat}
-          className="h-10 w-full justify-start gap-2.5 rounded-xl border border-sidebar-border/50 bg-sidebar-accent/20 px-4 text-sm font-medium shadow-none hover:bg-sidebar-accent/40 transition-colors"
+          className="h-10 w-full justify-start gap-2.5 rounded-xl border border-sidebar-border/50 bg-sidebar-accent/10 px-4 text-sm font-medium shadow-none hover:bg-sidebar-accent/30 hover:border-sidebar-border transition-all"
           variant="outline"
         >
           <Plus className="h-4 w-4" />
           {i18n.newChat}
         </Button>
       </div>
-      <Separator className="bg-sidebar-border/40 mx-3 w-auto" />
-      <div className="flex items-center justify-between px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">
-        <span>{i18n.recent}</span>
+
+      <Separator className="bg-sidebar-border/30 mx-3 w-auto" />
+
+      {/* "最近" 标题栏 */}
+      <div className="flex items-center justify-between px-4 pt-6 pb-2">
+        <span className="text-sm font-semibold text-muted-foreground/80 tracking-wide">
+          {i18n.recent}
+        </span>
         <Button
           variant="ghost" size="icon"
-          className="h-5 w-5 rounded-md hover:bg-sidebar-accent"
+          className="h-6 w-6 rounded-md text-muted-foreground/40 hover:bg-sidebar-accent hover:text-muted-foreground transition-colors"
           onClick={onRefresh}
         >
-          <RefreshCcw className="h-3 w-3" />
+          <RefreshCcw className="h-3.5 w-3.5" />
         </Button>
       </div>
+
+      {/* 列表区域 */}
       <div className="flex-1 overflow-y-auto custom-scrollbar">
         <ChatList
           sessions={sessions}

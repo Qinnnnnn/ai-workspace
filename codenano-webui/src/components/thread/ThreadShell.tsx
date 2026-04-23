@@ -46,7 +46,6 @@ export function ThreadShell({
     [booting, onNewChat],
   )
 
-  // Flush pending first message after session is created
   useEffect(() => {
     if (!session) return
     const pending = pendingFirstRef.current
@@ -67,7 +66,7 @@ export function ThreadShell({
   }, [])
 
   return (
-    <section className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
+    <section className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
       <ThreadHeader
         title={title}
         onToggleSidebar={onToggleSidebar}
@@ -96,32 +95,42 @@ export function ThreadShell({
           </>
         ) : (
           <>
-            <div className="flex flex-1 flex-col items-center justify-center gap-8 px-4 pb-6">
-              <div className="flex flex-col items-center gap-4 animate-in fade-in-0 slide-in-from-bottom-2 duration-500">
-                <picture>
-                  <source srcSet="/brand/codenano_logo.webp" type="image/webp" />
-                  <img
-                    src="/brand/codenano_icon.png"
-                    alt="codenano"
-                    className="h-12 w-auto select-none drop-shadow-sm"
-                    draggable={false}
+            <div className="flex flex-1 flex-col items-center justify-center px-6 pb-24">
+              <div className="flex flex-col items-center max-w-[640px] w-full animate-in fade-in zoom-in-95 duration-1000">
+
+                {/* Logo 保持精致尺寸 */}
+                <div className="mb-8">
+                  <picture className="block pointer-events-none select-none">
+                    <source srcSet="/brand/codenano_logo.webp" type="image/webp" />
+                    <img
+                      src="/brand/codenano_icon.png"
+                      alt="codenano"
+                      className="h-28 w-auto object-contain"
+                      draggable={false}
+                    />
+                  </picture>
+                </div>
+
+                {/* 文案排版：字号适中，增加呼吸感 */}
+                <div className="text-center space-y-2 mb-10">
+                  <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+                    {i18n.whatsOnYourMind}
+                  </h1>
+                  <p className="text-sm text-muted-foreground/60">
+                    {i18n.conversationsPersisted}
+                  </p>
+                </div>
+
+                {/* 对话框：移除外部多余容器的 border 和 shadow，解决重影 */}
+                <div className="w-full max-w-xl animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200">
+                  <Composer
+                    compact
+                    disabled={booting}
+                    onSend={handleWelcomeSend}
+                    placeholder={booting ? i18n.openingNewChat : "在此输入你的想法..."}
+                    variant="hero"
                   />
-                </picture>
-                <h1 className="text-xl font-medium tracking-tight text-foreground/90">
-                  {i18n.whatsOnYourMind}
-                </h1>
-                <p className="max-w-md text-center text-sm text-muted-foreground">
-                  {i18n.conversationsPersisted}
-                </p>
-              </div>
-              <div className="w-full animate-in fade-in-0 slide-in-from-bottom-2 duration-500">
-                <Composer
-                  compact
-                  disabled={booting}
-                  onSend={handleWelcomeSend}
-                  placeholder={booting ? i18n.openingNewChat : i18n.typeYourMessage}
-                  variant="hero"
-                />
+                </div>
               </div>
             </div>
           </>
