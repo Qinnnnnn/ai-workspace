@@ -99,9 +99,9 @@ export function ThreadShell({
             <div className="flex flex-1 flex-col items-center justify-center gap-8 px-4 pb-6">
               <div className="flex flex-col items-center gap-4 animate-in fade-in-0 slide-in-from-bottom-2 duration-500">
                 <picture>
-                  <source srcSet="/brand/nanobot_logo.webp" type="image/webp" />
+                  <source srcSet="/brand/codenano_logo.webp" type="image/webp" />
                   <img
-                    src="/brand/nanobot_icon.png"
+                    src="/brand/codenano_icon.png"
                     alt="codenano"
                     className="h-12 w-auto select-none drop-shadow-sm"
                     draggable={false}
