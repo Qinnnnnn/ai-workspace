@@ -69,9 +69,9 @@ export function Composer({
         className={cn(
           'relative mx-auto flex w-full flex-col overflow-hidden transition-all duration-200',
           isHero
-            ? 'max-w-[60rem] rounded-[24px] border border-border/75 bg-card/72 shadow-[0_10px_30px_rgba(0,0,0,0.10)]'
-            : 'max-w-[74rem] rounded-[16px] border border-border/70 bg-card/55',
-          'focus-within:bg-card/70 focus-within:ring-1 focus-within:ring-foreground/8',
+            ? 'max-w-[40rem] rounded-3xl border border-black/10 dark:border-white/10 bg-card/80 shadow-[0_0_40px_rgba(0,0,0,0.08),0_4px_24px_rgba(0,0,0,0.06)] dark:shadow-[0_0_40px_rgba(255,255,255,0.04),0_4px_24px_rgba(0,0,0,0.3)]'
+            : 'max-w-[74rem] rounded-2xl border border-black/10 dark:border-white/10 bg-card/60 shadow-sm dark:shadow-none',
+          'focus-within:bg-card/85 focus-within:shadow-md',
           disabled && 'opacity-60',
         )}
       >
@@ -88,8 +88,8 @@ export function Composer({
           className={cn(
             'w-full resize-none bg-transparent',
             isHero
-              ? 'min-h-[120px] px-4 pb-2 pt-4 text-[15px] leading-6'
-              : 'min-h-[62px] px-4 pb-1.5 pt-3 text-[15px]',
+              ? 'min-h-[100px] px-5 pb-2.5 pt-4 text-[15px] leading-[1.6]'
+              : 'min-h-[60px] px-4 pb-1.5 pt-3 text-[15px]',
             'placeholder:text-muted-foreground',
             'focus:outline-none focus-visible:outline-none',
             'disabled:cursor-not-allowed',
@@ -110,12 +110,12 @@ export function Composer({
             disabled={disabled || !value.trim()}
             aria-label="Send message"
             className={cn(
-              'rounded-full border border-border/70 bg-secondary/85 text-secondary-foreground shadow-none transition-transform hover:bg-accent',
+              'rounded-full border border-black/10 dark:border-white/15 bg-foreground text-background shadow-sm transition-all hover:bg-foreground/90 hover:shadow-md active:scale-95',
               isHero ? 'h-8.5 w-8.5' : 'h-7.5 w-7.5',
-              value.trim() && !disabled && 'hover:scale-[1.03] active:scale-95',
+              value.trim() && !disabled && 'hover:scale-[1.04] active:scale-95',
             )}
           >
-            <ArrowUp className={cn(isHero ? 'h-4.5 w-4.5' : 'h-4 w-4')} />
+            <ArrowUp className={cn(isHero ? 'h-4 w-4' : 'h-3.5 w-3.5')} />
           </Button>
         </div>
       </div>

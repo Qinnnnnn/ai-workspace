@@ -337,7 +337,7 @@ export default function App() {
 
       {/* Main content */}
       <main className="relative flex h-full min-w-0 flex-1 flex-col overflow-hidden">
-        <div className="flex-1 min-h-0 relative flex flex-col">
+        <div className="flex-1 min-h-0 relative flex flex-col w-full">
           <ThreadShell
             session={activeSession}
             title={headerTitle}
@@ -355,10 +355,10 @@ export default function App() {
           />
         </div>
 
-        {/* Footer: 更加紧凑，颜色加深 */}
-        <footer className="w-full shrink-0 pb-1.5 pt-0.5">
-          <div className="mx-auto max-w-3xl px-4 text-center">
-             <p className="text-[10px] sm:text-[11px] text-muted-foreground/80 tracking-tight">
+        {/* Footer */}
+        <footer className="w-full shrink-0 pb-3 pt-2">
+          <div className="mx-auto max-w-4xl px-4 sm:px-6 md:px-8 text-center">
+             <p className="text-[10px] sm:text-[11px] text-muted-foreground/60 tracking-tight">
                Powered by Claude Code, ©2026 无线网络产品工程与IT装备部
              </p>
           </div>

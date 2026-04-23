@@ -67,54 +67,54 @@ export function ThreadShell({
   }, [])
 
   return (
-    <section className="relative flex min-h-0 flex-1 flex-col overflow-hidden pb-4">
+    <section className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
       <ThreadHeader
         title={title}
         onToggleSidebar={onToggleSidebar}
         onGoHome={onGoHome}
       />
-      {session ? (
-        <>
-          {isLoadingHistory ? (
-            <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-              {i18n.loadingConversation}
-            </div>
-          ) : (
-            <>
-              <MessageList messages={messages} isStreaming={isStreaming} />
-              <div className="mx-auto w-full max-w-[72rem] px-4 pb-4">
-                <Composer
-                  onSend={onSend}
-                  disabled={!session || isStreaming}
-                  placeholder={isStreaming ? i18n.waitingForResponse : i18n.typeYourMessage}
-                  variant="thread"
-                />
+      <div className="flex flex-1 flex-col min-h-0 w-full max-w-4xl mx-auto">
+        {session ? (
+          <>
+            {isLoadingHistory ? (
+              <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                {i18n.loadingConversation}
               </div>
-            </>
-          )}
-        </>
-      ) : (
-        <>
-          <div className="flex flex-1 flex-col items-center justify-center gap-8 px-4 pb-6">
-            <div className="flex flex-col items-center gap-4 animate-in fade-in-0 slide-in-from-bottom-2 duration-500">
-              <picture>
-                <source srcSet="/brand/nanobot_logo.webp" type="image/webp" />
-                <img
-                  src="/brand/nanobot_icon.png"
-                  alt="codenano"
-                  className="h-12 w-auto select-none drop-shadow-sm"
-                  draggable={false}
-                />
-              </picture>
-              <h1 className="text-xl font-medium tracking-tight text-foreground/90">
-                {i18n.whatsOnYourMind}
-              </h1>
-              <p className="max-w-md text-center text-sm text-muted-foreground">
-                {i18n.conversationsPersisted}
-              </p>
-            </div>
-            <div className="w-full animate-in fade-in-0 slide-in-from-bottom-2 duration-500">
-              <div className="mx-auto w-full max-w-[72rem] px-4">
+            ) : (
+              <>
+                <MessageList messages={messages} isStreaming={isStreaming} />
+                <div className="px-4 pb-4">
+                  <Composer
+                    onSend={onSend}
+                    disabled={!session || isStreaming}
+                    placeholder={isStreaming ? i18n.waitingForResponse : i18n.typeYourMessage}
+                    variant="thread"
+                  />
+                </div>
+              </>
+            )}
+          </>
+        ) : (
+          <>
+            <div className="flex flex-1 flex-col items-center justify-center gap-8 px-4 pb-6">
+              <div className="flex flex-col items-center gap-4 animate-in fade-in-0 slide-in-from-bottom-2 duration-500">
+                <picture>
+                  <source srcSet="/brand/nanobot_logo.webp" type="image/webp" />
+                  <img
+                    src="/brand/nanobot_icon.png"
+                    alt="codenano"
+                    className="h-12 w-auto select-none drop-shadow-sm"
+                    draggable={false}
+                  />
+                </picture>
+                <h1 className="text-xl font-medium tracking-tight text-foreground/90">
+                  {i18n.whatsOnYourMind}
+                </h1>
+                <p className="max-w-md text-center text-sm text-muted-foreground">
+                  {i18n.conversationsPersisted}
+                </p>
+              </div>
+              <div className="w-full animate-in fade-in-0 slide-in-from-bottom-2 duration-500">
                 <Composer
                   compact
                   disabled={booting}
@@ -124,9 +124,9 @@ export function ThreadShell({
                 />
               </div>
             </div>
-          </div>
-        </>
-      )}
+          </>
+        )}
+      </div>
     </section>
   )
 }
