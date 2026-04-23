@@ -125,7 +125,7 @@ function ToolActionBlock({ block }: { block: ToolUseBlock }) {
               <div className="flex items-center gap-1.5 mb-1">
                 <span className="text-[14px] font-bold text-blue-400/80">{i18n.input}</span>
               </div>
-              <pre className="text-[14px] font-mono leading-relaxed text-blue-700/80 whitespace-pre-wrap break-words italic">
+              <pre className="text-[14px] font-mono leading-relaxed text-blue-700/80 whitespace-pre-wrap break-words">
                 {formattedInput}
               </pre>
             </div>

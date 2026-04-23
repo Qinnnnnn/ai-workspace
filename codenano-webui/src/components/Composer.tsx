@@ -112,7 +112,7 @@ export function Composer({
             aria-label="Send message"
             className={cn(
               'rounded-full border border-black/10 dark:border-white/15 bg-foreground text-background shadow-sm transition-all hover:bg-foreground/90 hover:shadow-md active:scale-95',
-              isHero ? 'h-8.5 w-8.5' : 'h-7.5 w-7.5',
+              isHero ? 'h-10 w-10' : 'h-9 w-9',
               value.trim() && !disabled && 'hover:scale-[1.04] active:scale-95',
             )}
           >

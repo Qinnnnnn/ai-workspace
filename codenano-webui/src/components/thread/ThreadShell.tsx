@@ -72,7 +72,7 @@ export function ThreadShell({
         onToggleSidebar={onToggleSidebar}
         onGoHome={onGoHome}
       />
-      <div className="flex flex-1 flex-col min-h-0 w-full max-w-4xl mx-auto">
+      <div className="flex flex-1 flex-col min-h-0 w-full">
         {session ? (
           <>
             {isLoadingHistory ? (
@@ -82,13 +82,15 @@ export function ThreadShell({
             ) : (
               <>
                 <MessageList messages={messages} isStreaming={isStreaming} />
-                <div className="px-4 pb-4">
-                  <Composer
-                    onSend={onSend}
-                    disabled={!session || isStreaming}
-                    placeholder={isStreaming ? i18n.waitingForResponse : i18n.typeYourMessage}
-                    variant="thread"
-                  />
+                <div className="w-full max-w-4xl mx-auto px-4 pb-6">
+                  <div className="[&_textarea]:min-h-[90px] [&_textarea]:py-4 transition-all">
+                    <Composer
+                      onSend={onSend}
+                      disabled={!session || isStreaming}
+                      placeholder={isStreaming ? i18n.waitingForResponse : i18n.typeYourMessage}
+                      variant="thread"
+                    />
+                  </div>
                 </div>
               </>
             )}
@@ -122,7 +124,7 @@ export function ThreadShell({
                 </div>
 
                 {/* 对话框：移除外部多余容器的 border 和 shadow，解决重影 */}
-                <div className="w-full max-w-xl animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200">
+                <div className="w-full max-w-xl animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200 [&_textarea]:min-h-[90px]">
                   <Composer
                     compact
                     disabled={booting}

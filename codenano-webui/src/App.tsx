@@ -356,9 +356,9 @@ export default function App() {
         </div>
 
         {/* Footer */}
-        <footer className="w-full shrink-0 pb-3 pt-2">
+        <footer className="w-full shrink-0 pb-1 pt-0">
           <div className="mx-auto max-w-4xl px-4 sm:px-6 md:px-8 text-center">
-             <p className="text-[10px] sm:text-[11px] text-muted-foreground/60 tracking-tight">
+             <p className="text-xs sm:text-sm text-muted-foreground/60 tracking-tight">
                Powered by Claude Code, ©2026 无线网络产品工程与IT装备部
              </p>
           </div>
