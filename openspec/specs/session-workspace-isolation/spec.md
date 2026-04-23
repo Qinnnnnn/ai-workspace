@@ -15,7 +15,7 @@ Each session SHALL have an isolated workspace directory at `~/.agent-core/worksp
 
 #### Scenario: Workspace path returned in API response
 - **WHEN** session details are retrieved via `GET /api/v1/sessions/{id}` or `GET /api/v1/sessions`
-- **THEN** the response SHALL include `workspace` field with the workspace directory path
+- **THEN** the response SHALL include `cwd` field with the workspace directory path
 
 ### Requirement: Workspace isolation in tools
 

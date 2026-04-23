@@ -47,7 +47,7 @@ export interface SessionSummary {
   sessionId: string
   createdAt: string | null
   lastActivity: string | null
-  workspace?: string
+  cwd?: string
   active?: boolean
 }
 

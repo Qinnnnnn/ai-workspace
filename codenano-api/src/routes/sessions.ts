@@ -33,10 +33,10 @@ export async function sessionsRoutes(fastify: FastifyInstance): Promise<void> {
 
     // Create session ID and workspace
     const sessionId = resumeSessionId ?? crypto.randomUUID()
-    const workspace = join(WORKSPACE_BASE, sessionId)
+    const cwd = join(WORKSPACE_BASE, sessionId)
 
     // Create workspace directory
-    mkdirSync(workspace, { recursive: true })
+    mkdirSync(cwd, { recursive: true })
 
     // Build persistence config
     const persistence: { enabled: boolean; storageDir?: string; resumeSessionId?: string } = {
@@ -73,7 +73,7 @@ export async function sessionsRoutes(fastify: FastifyInstance): Promise<void> {
       memory: config.memory,
       toolPreset: config.toolPreset,
       tools: config.tools as ToolDef[],
-      workspace,  // Pass workspace to agent config
+      cwd,  // Pass cwd to agent config
     }
 
     // Create agent with direct library call
@@ -88,10 +88,10 @@ export async function sessionsRoutes(fastify: FastifyInstance): Promise<void> {
     // Register in registry
     registry.register(sessionId, agent, session, {
       toolPermissions: toolPermissions as Record<string, ToolPermission>,
-      workspace,
+      cwd,
     })
 
-    return reply.send({ sessionId, workspace })
+    return reply.send({ sessionId, cwd })
   })
 
   // List all sessions
@@ -115,7 +115,7 @@ export async function sessionsRoutes(fastify: FastifyInstance): Promise<void> {
         sessionMap.set(entry.sessionId, {
           ...existing,
           lastActivity: entry.lastActivity,
-          workspace: entry.workspace,
+          cwd: entry.cwd,
           active: true,
         })
       } else {
@@ -123,7 +123,7 @@ export async function sessionsRoutes(fastify: FastifyInstance): Promise<void> {
           sessionId: entry.sessionId,
           createdAt: entry.createdAt,
           lastActivity: entry.lastActivity,
-          workspace: entry.workspace,
+          cwd: entry.cwd,
           active: true,
         })
       }
@@ -145,7 +145,7 @@ export async function sessionsRoutes(fastify: FastifyInstance): Promise<void> {
 
     return reply.send({
       sessionId: id,
-      workspace: entry.workspace,
+      cwd: entry.cwd,
       createdAt: entry.createdAt.toISOString(),
       lastActivity: entry.lastActivity.toISOString(),
     })

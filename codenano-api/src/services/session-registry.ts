@@ -14,7 +14,7 @@ export interface SessionEntry {
   createdAt: Date
   lastActivity: Date
   toolPermissions: Record<string, ToolPermission>
-  workspace: string
+  cwd: string
 }
 
 export class SessionRegistry {
@@ -47,7 +47,7 @@ export class SessionRegistry {
    */
   register(sessionId: string, agent: Agent, session: Session, options: {
     toolPermissions?: Record<string, ToolPermission>
-    workspace: string
+    cwd: string
   }): void {
     const entry: SessionEntry = {
       agent,
@@ -56,7 +56,7 @@ export class SessionRegistry {
       createdAt: new Date(),
       lastActivity: new Date(),
       toolPermissions: options.toolPermissions ?? {},
-      workspace: options.workspace,
+      cwd: options.cwd,
     }
 
     this.sessions.set(sessionId, entry)
@@ -77,13 +77,13 @@ export class SessionRegistry {
     sessionId: string
     createdAt: string
     lastActivity: string
-    workspace: string
+    cwd: string
   }> {
     return Array.from(this.sessions.values()).map((entry) => ({
       sessionId: entry.sessionId,
       createdAt: entry.createdAt.toISOString(),
       lastActivity: entry.lastActivity.toISOString(),
-      workspace: entry.workspace,
+      cwd: entry.cwd,
     }))
   }
 
@@ -107,7 +107,7 @@ export class SessionRegistry {
 
     // Delete workspace directory
     try {
-      fs.rmSync(entry.workspace, { recursive: true, force: true })
+      fs.rmSync(entry.cwd, { recursive: true, force: true })
     } catch {
       // Ignore cleanup errors
     }

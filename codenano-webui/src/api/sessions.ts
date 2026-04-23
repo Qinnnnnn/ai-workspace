@@ -12,7 +12,7 @@ export interface CreateSessionBody {
 
 export interface CreateSessionResponse {
   sessionId: string
-  workspace: string
+  cwd: string
 }
 
 export interface ListSessionsResponse {
