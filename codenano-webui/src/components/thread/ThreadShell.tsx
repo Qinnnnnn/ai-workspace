@@ -82,12 +82,14 @@ export function ThreadShell({
           ) : (
             <>
               <MessageList messages={messages} isStreaming={isStreaming} />
-              <Composer
-                onSend={onSend}
-                disabled={!session || isStreaming}
-                placeholder={isStreaming ? i18n.waitingForResponse : i18n.typeYourMessage}
-                variant="thread"
-              />
+              <div className="mx-auto w-full max-w-[72rem] px-4 pb-4">
+                <Composer
+                  onSend={onSend}
+                  disabled={!session || isStreaming}
+                  placeholder={isStreaming ? i18n.waitingForResponse : i18n.typeYourMessage}
+                  variant="thread"
+                />
+              </div>
             </>
           )}
         </>
@@ -112,13 +114,15 @@ export function ThreadShell({
               </p>
             </div>
             <div className="w-full animate-in fade-in-0 slide-in-from-bottom-2 duration-500">
-              <Composer
-                compact
-                disabled={booting}
-                onSend={handleWelcomeSend}
-                placeholder={booting ? i18n.openingNewChat : i18n.typeYourMessage}
-                variant="hero"
-              />
+              <div className="mx-auto w-full max-w-[72rem] px-4">
+                <Composer
+                  compact
+                  disabled={booting}
+                  onSend={handleWelcomeSend}
+                  placeholder={booting ? i18n.openingNewChat : i18n.typeYourMessage}
+                  variant="hero"
+                />
+              </div>
             </div>
           </div>
         </>

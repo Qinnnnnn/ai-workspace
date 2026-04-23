@@ -60,7 +60,7 @@ export function MessageList({ messages, isStreaming }: MessageListProps) {
           '[&::-webkit-scrollbar-track]:bg-transparent',
         )}
       >
-        <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 pt-4 pb-8">
+        <div className="mx-auto flex w-full max-w-[72rem] flex-col gap-4 px-4 pt-4 pb-8">
           {normalizedMessages.map((m) => (
             <MessageBubble key={m.id} message={m} />
           ))}

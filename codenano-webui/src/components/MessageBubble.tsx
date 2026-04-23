@@ -48,7 +48,7 @@ function ThinkingBlock({ block }: { block: Extract<ContentBlock, { type: 'thinki
       <div className={cn("grid transition-all duration-300 ease-in-out", open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0")}>
         <div className="overflow-hidden">
           {/* 这里加深了内层背景色 */}
-          <div className="border-t border-border/40 p-3 text-[13px] leading-relaxed text-muted-foreground bg-muted/50 dark:bg-black/20 text-left">
+          <div className="border-t border-border/40 p-3 text-[14px] leading-relaxed text-muted-foreground bg-muted/50 dark:bg-black/20 text-left">
             <MarkdownText>{block.thinking}</MarkdownText>
           </div>
         </div>
@@ -80,31 +80,31 @@ function ToolActionBlock({ block }: { block: ToolUseBlock }) {
   return (
     <div
       className={cn(
-        "relative rounded-lg border overflow-hidden transition-all duration-300 ease-out origin-left flex-shrink-0",
-        open 
-          ? "w-full border-border/60 mb-1 shadow-md" 
-          : cn("w-full max-w-[220px] border-border/30", isError ? "bg-red-500/5 border-red-500/20 hover:bg-red-500/10" : "bg-muted/20 hover:bg-muted/40")
+        "relative rounded-lg border transition-all duration-300 ease-out origin-left flex-shrink-0",
+        open
+          ? "w-full border-border/80 mb-1 shadow-sm bg-white"
+          : cn("w-full max-w-[220px] border-border/40", isError ? "bg-red-50 border-red-200 hover:bg-red-100" : "bg-muted/30 hover:bg-muted/50")
       )}
     >
       <button
         type="button"
         onClick={() => setOpen(!open)}
         className={cn(
-          "group flex w-full items-center gap-2 px-2.5 h-[32px] text-xs transition-colors cursor-pointer whitespace-nowrap select-none",
-          open ? "bg-background" : ""
+          "group flex w-full items-center gap-2 px-2.5 h-[32px] text-xs transition-colors cursor-pointer select-none",
+          open ? "bg-muted/10" : ""
         )}
       >
         {isPending ? (
-          <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-blue-500" />
+          <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-400" />
         ) : isError ? (
-          <AlertCircle className="h-3.5 w-3.5 shrink-0 text-red-500" />
+          <AlertCircle className="h-3.5 w-3.5 text-red-400" />
         ) : (
-          <Wrench className="h-3.5 w-3.5 shrink-0 text-emerald-500/70" />
+          <Wrench className="h-3.5 w-3.5 text-blue-500/60" />
         )}
 
         <span className={cn(
-          "font-mono text-[10.5px] font-medium truncate",
-          open ? "text-foreground" : "text-foreground/70"
+          "font-mono text-[10.5px] font-semibold truncate",
+          open ? "text-foreground" : "text-foreground/60"
         )}>
           {block.name || 'Action'}
         </span>
@@ -113,31 +113,44 @@ function ToolActionBlock({ block }: { block: ToolUseBlock }) {
           {isPending ? i18n.running : isError ? i18n.failed : 'DONE'}
         </span>
 
-        <ChevronRight className={cn('ml-auto h-3 w-3 text-muted-foreground/40 shrink-0 transition-transform duration-300', open ? 'rotate-90 text-muted-foreground/70' : '')} />
+        <ChevronRight className={cn('ml-auto h-3 w-3 text-muted-foreground/30 transition-transform duration-300', open ? 'rotate-90' : '')} />
       </button>
 
-      <div className={cn("grid transition-all duration-300 ease-in-out bg-[#0D1117]", open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0")}>
+      <div className={cn("grid transition-all duration-300 ease-in-out", open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0")}>
         <div className="overflow-hidden">
-          <div className="flex flex-col text-left border-t border-white/10">
-            {/* Input 区 - 使用深色背景 */}
-            <div className="px-3 py-2 border-b border-white/5 bg-black/20 overflow-x-auto">
-              <span className="text-[13px] font-bold text-white/30 block mb-1">{i18n.input}</span>
-              <pre className="text-[13px] font-mono leading-relaxed text-white/80 whitespace-pre-wrap break-words">{formattedInput}</pre>
+          <div className="flex flex-col text-left border-t border-border/40">
+
+            {/* Input 区：淡雅的冰蓝色背景 */}
+            <div className="px-3 py-2.5 bg-blue-50/50 border-b border-blue-100/50 overflow-x-auto custom-scrollbar">
+              <div className="flex items-center gap-1.5 mb-1">
+                <span className="text-[14px] font-bold text-blue-400/80">{i18n.input}</span>
+              </div>
+              <pre className="text-[14px] font-mono leading-relaxed text-blue-700/80 whitespace-pre-wrap break-words italic">
+                {formattedInput}
+              </pre>
             </div>
 
-            {/* Output 区 - 纯黑/极深色背景 */}
-            <div className={cn("px-3 py-2 overflow-x-auto max-h-[300px] overflow-y-auto custom-scrollbar bg-black/40", isError && "bg-red-950/30")}>
-              <span className="text-[13px] font-bold text-white/30 block mb-1">{i18n.output}</span>
+            {/* Output 区：极简灰白背景 */}
+            <div className={cn(
+              "px-3 py-2.5 overflow-x-auto max-h-[300px] overflow-y-auto custom-scrollbar bg-gray-50/80",
+              isError && "bg-red-50/50"
+            )}>
+              <div className="flex items-center gap-1.5 mb-1">
+                <span className="text-[14px] font-bold text-gray-400/80">{i18n.output}</span>
+              </div>
               {isPending ? (
-                <span className="flex items-center gap-2 text-white/30 text-[13px] font-mono italic">
-                  Running...
+                <span className="text-gray-400 text-[14px] font-mono animate-pulse font-medium">
+                  $ processing...
                 </span>
               ) : isEmptySuccess ? (
-                <span className="text-emerald-500/60 text-[13px] font-mono font-medium">
-                  ✓ Success
+                <span className="text-emerald-600/70 text-[14px] font-mono font-semibold">
+                  ✓ Done (no output)
                 </span>
               ) : (
-                <pre className={cn("text-[13px] font-mono leading-relaxed whitespace-pre-wrap break-words", isError ? "text-red-400" : "text-white/60")}>
+                <pre className={cn(
+                  "text-[14px] font-mono leading-relaxed whitespace-pre-wrap break-words",
+                  isError ? "text-red-600/80" : "text-gray-700"
+                )}>
                   {block.result!.content}
                 </pre>
               )}
@@ -166,7 +179,7 @@ export function MessageBubble({ message }: { message: UIMessage }) {
     const textContent = blocks.find(b => b.type === 'text') as Extract<ContentBlock, { type: 'text' }> | undefined
     return (
       <div className={cn('group flex w-full justify-end py-1', baseAnim)}>
-        <p className="max-w-[85%] md:max-w-[75%] rounded-2xl rounded-tr-sm bg-foreground text-background px-4 py-2 text-[15px] leading-relaxed whitespace-pre-wrap break-words shadow-sm text-left">
+        <p className="max-w-[85%] md:max-w-[75%] rounded-2xl rounded-tr-sm bg-foreground text-background px-4 py-2 text-[14px] leading-relaxed whitespace-pre-wrap break-words shadow-sm text-left">
           {textContent?.text || String(message.content)}
         </p>
       </div>
@@ -175,7 +188,7 @@ export function MessageBubble({ message }: { message: UIMessage }) {
 
   return (
     <div className={cn('flex w-full justify-start py-1', baseAnim)}>
-      <div className="mx-auto w-full max-w-3xl px-4 flex flex-col items-start gap-1">
+      <div className="w-full flex flex-col items-start gap-1">
         {blocks.map((block, i) => {
           if (block.type === 'thinking') {
             return <ThinkingBlock key={`think-${i}`} block={block} />
@@ -185,7 +198,7 @@ export function MessageBubble({ message }: { message: UIMessage }) {
           }
           if (block.type === 'text' && block.text?.trim()) {
             return (
-              <div key={`text-${i}`} className="px-1 pt-2 pb-1 w-full text-[15px] leading-relaxed text-foreground text-left max-w-none prose prose-neutral dark:prose-invert">
+              <div key={`text-${i}`} className="px-1 pt-2 pb-1 w-full text-[14px] leading-relaxed text-foreground text-left max-w-none prose prose-neutral dark:prose-invert">
                 <MarkdownText>{block.text}</MarkdownText>
               </div>
             )
