@@ -40,20 +40,15 @@ export default function App() {
   const messageCacheRef = useRef<Map<string, UIMessage[]>>(new Map())
   const pendingFirstRef = useRef<string | null>(null)
 
-  // History messages per session
   const [historyMessages, setHistoryMessages] = useState<Record<string, UIMessage[]>>({})
-
-  // Per-session chat state
   const [sessionMessages, setSessionMessages] = useState<Record<string, UIMessage[]>>({})
   const [sessionStreaming, setSessionStreaming] = useState<Record<string, boolean>>({})
 
-  // Active session
   const activeSession = useMemo<SessionSummary | null>(() => {
     if (!activeId) return null
     return sessions.find((s) => s.sessionId === activeId) ?? null
   }, [sessions, activeId])
 
-  // Callbacks for streaming
   const streamCallbacks = useMemo(
     () => ({
       onText: (text: string) => {
@@ -87,7 +82,6 @@ export default function App() {
           const last = msgs[msgs.length - 1]
           if (last && last.role === 'assistant' && last.isStreaming) {
             const content = Array.isArray(last.content) ? [...last.content] : [{ type: 'text' as const, text: String(last.content) }]
-            // Append to last thinking block if it exists, otherwise create new one
             const lastBlock = content[content.length - 1]
             if (lastBlock && lastBlock.type === 'thinking') {
               lastBlock.thinking += thinking
@@ -112,7 +106,6 @@ export default function App() {
           const last = msgs[msgs.length - 1]
           if (last && last.role === 'assistant' && last.isStreaming) {
             const content = Array.isArray(last.content) ? [...last.content] : [{ type: 'text' as const, text: String(last.content) }]
-            // Update existing tool_use block if same ID exists (backend sends tool_use twice: without input first, then with input)
             const existingIdx = content.findIndex((b) => b.type === 'tool_use' && b.id === event.toolUseId)
             if (existingIdx !== -1) {
               const existing = content[existingIdx] as Extract<ContentBlock, { type: 'tool_use' }>
@@ -159,10 +152,6 @@ export default function App() {
           return prev
         })
         setSessionStreaming((prev) => ({ ...prev, [activeId]: false }))
-        if (activeId) {
-          const msgs = sessionMessages[activeId] ?? []
-          messageCacheRef.current.set(activeId, msgs)
-        }
       },
       onError: (error: string) => {
         if (!activeId) return
@@ -185,21 +174,17 @@ export default function App() {
         setSessionStreaming((prev) => ({ ...prev, [activeId]: false }))
       },
     }),
-    [activeId, sessionMessages],
+    [activeId]
   )
 
   const { send: doSend } = useStream(streamCallbacks)
 
-  // Sidebar open state persistence
   useEffect(() => {
     try {
       window.localStorage.setItem(SIDEBAR_STORAGE_KEY, desktopSidebarOpen ? '1' : '0')
-    } catch {
-      // ignore
-    }
+    } catch {}
   }, [desktopSidebarOpen])
 
-  // Theme toggle
   const toggleTheme = useCallback(() => {
     setTheme((prev) => {
       const next = prev === 'light' ? 'dark' : 'light'
@@ -215,31 +200,29 @@ export default function App() {
     })
   }, [])
 
-  // Load history when switching to a session
   const loadHistory = useCallback(
     async (sessionId: string) => {
-      if (historyMessages[sessionId]) return // already loaded
+      if (historyMessages[sessionId]) return
       setIsLoadingHistory(true)
       try {
         const res = await getSessionHistory(sessionId)
-        const msgs: UIMessage[] = res.history.map((h, i) => {
-          const role = h.role as 'user' | 'assistant' | 'tool'
-          const content = h.content
-          return { id: `${sessionId}-${i}`, role, content, createdAt: Date.now() }
-        })
+        const msgs: UIMessage[] = res.history.map((h, i) => ({
+          id: `${sessionId}-${i}`,
+          role: h.role as 'user' | 'assistant' | 'tool',
+          content: h.content,
+          createdAt: Date.now()
+        }))
         setHistoryMessages((prev) => ({ ...prev, [sessionId]: msgs }))
         setSessionMessages((prev) => ({ ...prev, [sessionId]: msgs }))
       } catch (e) {
-        // If history fails, start fresh
         setSessionMessages((prev) => ({ ...prev, [sessionId]: [] }))
       } finally {
         setIsLoadingHistory(false)
       }
     },
-    [historyMessages],
+    [historyMessages]
   )
 
-  // Select session
   const handleSelect = useCallback(
     async (sessionId: string) => {
       setActiveId(sessionId)
@@ -250,10 +233,9 @@ export default function App() {
         setSessionMessages((prev) => ({ ...prev, [sessionId]: historyMessages[sessionId] }))
       }
     },
-    [loadHistory, historyMessages, sessionMessages],
+    [loadHistory, historyMessages, sessionMessages]
   )
 
-  // Create new chat
   const handleNewChat = useCallback(async (): Promise<string | null> => {
     const id = await create({})
     if (id) {
@@ -264,7 +246,6 @@ export default function App() {
     return id
   }, [create])
 
-  // Send message
   const handleSend = useCallback(
     async (content: string) => {
       if (!activeId) return
@@ -276,22 +257,18 @@ export default function App() {
       setSessionStreaming((prev) => ({ ...prev, [activeId]: true }))
       await doSend(activeId, content)
     },
-    [activeId, doSend],
+    [activeId, doSend]
   )
 
-  // Welcome composer sends before session exists
   const handleWelcomeSend = useCallback(
     async (content: string) => {
       pendingFirstRef.current = content
       const newId = await handleNewChat()
-      if (!newId) {
-        pendingFirstRef.current = null
-      }
+      if (!newId) pendingFirstRef.current = null
     },
-    [handleNewChat],
+    [handleNewChat]
   )
 
-  // Flush pending first message after session created
   useEffect(() => {
     if (!activeId || !pendingFirstRef.current) return
     const content = pendingFirstRef.current
@@ -305,7 +282,6 @@ export default function App() {
     doSend(activeId, content)
   }, [activeId, doSend])
 
-  // Delete session
   const handleConfirmDelete = useCallback(async () => {
     if (!pendingDelete) return
     const { id } = pendingDelete
@@ -317,10 +293,7 @@ export default function App() {
     await remove(id)
   }, [pendingDelete, activeId, sessions, remove])
 
-  // Title
-  const headerTitle = activeSession
-    ? activeSession.sessionId.slice(0, 8)
-    : 'codenano'
+  const headerTitle = activeSession ? activeSession.sessionId.slice(0, 8) : 'codenano'
 
   const sidebarProps = {
     sessions,
@@ -338,70 +311,73 @@ export default function App() {
   const isCurrentlyStreaming = activeId ? (sessionStreaming[activeId] ?? false) : false
 
   return (
-    <div className="relative flex h-full w-full overflow-hidden">
+    <div className="relative flex h-screen w-full overflow-hidden bg-background">
       {/* Desktop sidebar */}
       <aside
         className={cn(
-          'relative z-20 hidden shrink-0 overflow-hidden lg:block transition-all duration-300 ease-in-out',
+          'relative z-20 hidden shrink-0 lg:block transition-all duration-300 ease-in-out',
           desktopSidebarOpen ? 'w-[279px]' : 'w-0'
         )}
       >
-        <div
-          className={cn(
-            'absolute inset-y-0 left-0 h-full w-[279px] overflow-hidden bg-sidebar shadow-inner-right',
-            'transition-transform duration-300 ease-in-out',
-            desktopSidebarOpen ? 'translate-x-0' : '-translate-x-full',
-          )}
-        >
+        <div className={cn(
+          'absolute inset-y-0 left-0 h-full w-[279px] bg-sidebar border-r border-sidebar-border/70',
+          'transition-transform duration-300 ease-in-out',
+          desktopSidebarOpen ? 'translate-x-0' : '-translate-x-full',
+        )}>
           <SidebarInner {...sidebarProps} onCollapse={() => setDesktopSidebarOpen(false)} />
         </div>
       </aside>
 
       {/* Mobile sidebar */}
-      <Sheet open={mobileSidebarOpen} onOpenChange={(open) => setMobileSidebarOpen(open)}>
-        <SheetContent showCloseButton={false} className="w-[279px] p-0 sm:max-w-[279px] lg:hidden">
+      <Sheet open={mobileSidebarOpen} onOpenChange={setMobileSidebarOpen}>
+        <SheetContent showCloseButton={false} side="left" className="w-[279px] p-0 sm:max-w-[279px] lg:hidden">
           <SidebarInner {...sidebarProps} onCollapse={() => setMobileSidebarOpen(false)} />
         </SheetContent>
       </Sheet>
 
       {/* Main content */}
-      <main className="flex h-full min-w-0 flex-1 flex-col">
-        <ThreadShell
-          session={activeSession}
-          title={headerTitle}
-          onToggleSidebar={() => {
-            const isDesktop = typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches
-            if (isDesktop) {
-              setDesktopSidebarOpen((v) => !v)
-            } else {
-              setMobileSidebarOpen((v) => !v)
-            }
-          }}
-          onGoHome={() => setActiveId(null)}
-          onNewChat={handleNewChat}
-          messages={currentMessages}
-          isStreaming={isCurrentlyStreaming}
-          isLoadingHistory={isLoadingHistory}
-          onSend={activeSession ? handleSend : handleWelcomeSend}
-        />
+      <main className="relative flex h-full min-w-0 flex-1 flex-col overflow-hidden">
+        <div className="flex-1 min-h-0 relative flex flex-col">
+          <ThreadShell
+            session={activeSession}
+            title={headerTitle}
+            onToggleSidebar={() => {
+              const isDesktop = window.matchMedia('(min-width: 1024px)').matches
+              if (isDesktop) setDesktopSidebarOpen((v) => !v)
+              else setMobileSidebarOpen((v) => !v)
+            }}
+            onGoHome={() => setActiveId(null)}
+            onNewChat={handleNewChat}
+            messages={currentMessages}
+            isStreaming={isCurrentlyStreaming}
+            isLoadingHistory={isLoadingHistory}
+            onSend={activeSession ? handleSend : handleWelcomeSend}
+          />
+        </div>
+
+        {/* Footer: 更加紧凑，颜色加深 */}
+        <footer className="w-full shrink-0 pb-1.5 pt-0.5">
+          <div className="mx-auto max-w-3xl px-4 text-center">
+             <p className="text-[10px] sm:text-[11px] text-muted-foreground/80 tracking-tight">
+               Powered by Claude Code, ©2026 无线网络产品工程与IT装备部
+             </p>
+          </div>
+        </footer>
       </main>
 
-      {/* Delete confirm */}
+      {/* Delete confirm modal */}
       {pendingDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-background rounded-lg border p-6 shadow-lg max-w-sm mx-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-background rounded-xl border p-6 shadow-2xl max-w-sm mx-4 animate-in fade-in zoom-in duration-200">
             <h2 className="text-lg font-semibold mb-2">{i18n.deleteConversation}</h2>
-            <p className="text-sm text-muted-foreground mb-4">
+            <p className="text-sm text-muted-foreground mb-6">
               {i18n.deleteConfirm.replace('{label}', pendingDelete.label)}
             </p>
-            <div className="flex gap-2 justify-end">
-              <Button variant="outline" onClick={() => setPendingDelete(null)}>
+            <div className="flex gap-3 justify-end">
+              <Button variant="ghost" onClick={() => setPendingDelete(null)}>
                 {i18n.cancel}
               </Button>
-              <Button
-                variant="destructive"
-                onClick={() => void handleConfirmDelete()}
-              >
+              <Button variant="destructive" onClick={() => void handleConfirmDelete()}>
                 {i18n.delete}
               </Button>
             </div>
@@ -412,7 +388,6 @@ export default function App() {
   )
 }
 
-// Inner sidebar component
 interface SidebarInnerProps {
   sessions: SessionSummary[]
   activeId: string | null
@@ -427,63 +402,49 @@ interface SidebarInnerProps {
 }
 
 function SidebarInner({
-  sessions,
-  activeId,
-  loading,
-  theme,
-  onToggleTheme,
-  onNewChat,
-  onSelect,
-  onRefresh,
-  onRequestDelete,
-  onCollapse,
+  sessions, activeId, loading, theme, onToggleTheme, 
+  onNewChat, onSelect, onRefresh, onRequestDelete, onCollapse,
 }: SidebarInnerProps) {
   return (
-    <aside className="flex h-full w-full flex-col border-r border-sidebar-border/70 bg-sidebar text-sidebar-foreground">
-      <div className="flex items-center justify-between px-2 py-2">
+    <aside className="flex h-full w-full flex-col text-sidebar-foreground">
+      <div className="flex items-center justify-between px-3 py-3">
         <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7 rounded-lg text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground"
+          variant="ghost" size="icon"
+          className="h-8 w-8 rounded-lg text-muted-foreground hover:bg-sidebar-accent"
           onClick={onCollapse}
-          aria-label="Collapse sidebar"
         >
-          <PanelLeftClose className="h-3.5 w-3.5" />
+          <PanelLeftClose className="h-4 w-4" />
         </Button>
         <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7 rounded-lg text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground"
+          variant="ghost" size="icon"
+          className="h-8 w-8 rounded-lg text-muted-foreground hover:bg-sidebar-accent"
           onClick={onToggleTheme}
-          aria-label="Toggle theme"
         >
-          {theme === 'dark' ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
+          {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
         </Button>
       </div>
-      <div className="px-2 pb-2.5">
+      <div className="px-3 pb-3">
         <Button
           onClick={onNewChat}
-          className="h-8.5 w-full justify-start gap-2 rounded-lg border border-sidebar-border/80 bg-card/25 px-3 text-sm font-medium text-sidebar-foreground shadow-none hover:bg-sidebar-accent/80"
+          className="h-10 w-full justify-start gap-2.5 rounded-xl border border-sidebar-border/50 bg-sidebar-accent/20 px-4 text-sm font-medium shadow-none hover:bg-sidebar-accent/40 transition-colors"
           variant="outline"
         >
-          <Plus className="h-3.5 w-3.5" />
+          <Plus className="h-4 w-4" />
           {i18n.newChat}
         </Button>
       </div>
-      <Separator className="bg-sidebar-border/70" />
-      <div className="flex items-center justify-between px-2.5 py-2 text-xs font-medium text-muted-foreground">
+      <Separator className="bg-sidebar-border/40 mx-3 w-auto" />
+      <div className="flex items-center justify-between px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">
         <span>{i18n.recent}</span>
         <Button
-          variant="ghost"
-          size="icon"
-          className="h-6 w-6 rounded-md text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground"
+          variant="ghost" size="icon"
+          className="h-5 w-5 rounded-md hover:bg-sidebar-accent"
           onClick={onRefresh}
-          aria-label="Refresh sessions"
         >
-          <RefreshCcw className="h-3.5 w-3.5" />
+          <RefreshCcw className="h-3 w-3" />
         </Button>
       </div>
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-y-auto custom-scrollbar">
         <ChatList
           sessions={sessions}
           activeId={activeId}

@@ -15,5 +15,7 @@ export const i18n = {
   conversationsPersisted: '对话内容保存在服务器上，输入内容开始对话。',
   running: '运行中…',
   failed: '失败',
-  input: '输入：',
+  thinking: '思考过程',
+  output: '输出',
+  input: '输入',
 } as const
