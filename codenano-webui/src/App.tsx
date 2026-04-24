@@ -37,8 +37,8 @@ export default function App() {
     return document.documentElement.classList.contains('dark') ? 'dark' : 'light'
   })
   const [isLoadingHistory, setIsLoadingHistory] = useState(false)
-  const messageCacheRef = useRef<Map<string, UIMessage[]>>(new Map())
   const pendingFirstRef = useRef<string | null>(null)
+  const lastThinkingChunkRef = useRef<string>('')
 
   const [historyMessages, setHistoryMessages] = useState<Record<string, UIMessage[]>>({})
   const [sessionMessages, setSessionMessages] = useState<Record<string, UIMessage[]>>({})
@@ -84,9 +84,15 @@ export default function App() {
             const content = Array.isArray(last.content) ? [...last.content] : [{ type: 'text' as const, text: String(last.content) }]
             const lastBlock = content[content.length - 1]
             if (lastBlock && lastBlock.type === 'thinking') {
+              // Duplicate chunk + lastBlock still thinking = backend bug, skip
+              if (thinking === lastThinkingChunkRef.current) {
+                return prev
+              }
               lastBlock.thinking += thinking
+              lastThinkingChunkRef.current = thinking
             } else {
               content.push({ type: 'thinking', thinking })
+              lastThinkingChunkRef.current = thinking
             }
             return { ...prev, [activeId]: [...msgs.slice(0, -1), { ...last, content }] }
           }
@@ -143,6 +149,7 @@ export default function App() {
       },
       onDone: () => {
         if (!activeId) return
+        lastThinkingChunkRef.current = ''
         setSessionMessages((prev) => {
           const msgs = prev[activeId] ?? []
           const last = msgs[msgs.length - 1]

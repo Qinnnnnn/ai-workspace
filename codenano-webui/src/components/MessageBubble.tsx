@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { ChevronRight, Wrench, AlertCircle, CheckCircle2, Brain, Loader2 } from 'lucide-react'
+import { ChevronRight, Wrench, AlertCircle, Brain, Loader2 } from 'lucide-react'
 import { MarkdownText } from '@/components/MarkdownText'
 import { cn } from '@/lib/utils'
 import type { UIMessage, ContentBlock } from '@/lib/types'

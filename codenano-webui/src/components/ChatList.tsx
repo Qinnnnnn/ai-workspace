@@ -1,4 +1,4 @@
-import { MoreHorizontal, Trash2, Pencil, Share2, Pin } from 'lucide-react'
+import { MoreHorizontal, Trash2, Pencil, Share2 } from 'lucide-react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   DropdownMenu,

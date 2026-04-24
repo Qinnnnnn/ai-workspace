@@ -13,15 +13,9 @@ export default defineConfig({
     chunkSizeWarningLimit: 600,
     rollupOptions: {
       output: {
-        manualChunks: {
-          'vendor-react': ['react', 'react-dom'],
-          'vendor-markdown': [
-            'react-markdown',
-            'remark-gfm',
-            'remark-math',
-            'rehype-katex',
-            'react-syntax-highlighter',
-          ],
+        manualChunks(id) {
+          if (id.includes('node_modules/react')) return 'vendor-react'
+          if (id.includes('node_modules/react-markdown') || id.includes('node_modules/remark')) return 'vendor-markdown'
         },
       },
     },
