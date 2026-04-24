@@ -5,6 +5,16 @@ import { homedir } from 'os'
 import { join } from 'path'
 import fs from 'fs'
 
+// Mock docker-service - Docker enabled for these tests
+vi.mock('../src/services/docker-service.js', () => ({
+  checkDockerHealth: vi.fn().mockResolvedValue(true),
+  createContainer: vi.fn().mockImplementation((sessionId: string) =>
+    Promise.resolve(`mock-container-${sessionId}`)
+  ),
+  startContainer: vi.fn().mockResolvedValue(undefined),
+  stopContainer: vi.fn().mockResolvedValue(undefined),
+}))
+
 // Mock codenano
 vi.mock('codenano', async () => {
   const actual = await vi.importActual('codenano')
@@ -90,21 +100,23 @@ describe('Per-Session Workspace Isolation', () => {
       expect(response.statusCode).toBe(200)
       const body = JSON.parse(response.body)
       expect(body.sessionId).toBeDefined()
-      expect(body.workspace).toBeDefined()
-      expect(body.workspace).toContain('.agent-core/workspaces/')
+      expect(body.cwd).toBe('/workspace') // Virtual path in sandbox mode
+      expect(body.sandboxEnabled).toBe(true)
+      expect(body.containerId).toBeDefined()
 
-      // Verify workspace directory exists
-      expect(fs.existsSync(body.workspace)).toBe(true)
+      // Verify physical workspace directory exists
+      const physicalPath = join(WORKSPACE_BASE, body.sessionId)
+      expect(fs.existsSync(physicalPath)).toBe(true)
     })
 
-    it('should return workspace path in session details', async () => {
+    it('should return session details with sandbox info', async () => {
       // Create session first
       const createResponse = await app.inject({
         method: 'POST',
         url: '/api/v1/sessions',
         payload: { config: {} },
       })
-      const { sessionId, workspace: createdWorkspace } = JSON.parse(createResponse.body)
+      const { sessionId, containerId } = JSON.parse(createResponse.body)
 
       // Get session details
       const getResponse = await app.inject({
@@ -114,7 +126,9 @@ describe('Per-Session Workspace Isolation', () => {
 
       expect(getResponse.statusCode).toBe(200)
       const body = JSON.parse(getResponse.body)
-      expect(body.workspace).toBe(createdWorkspace)
+      expect(body.cwd).toBe('/workspace')
+      expect(body.containerId).toBe(containerId)
+      expect(body.sandboxEnabled).toBe(true)
     })
   })
 
@@ -126,10 +140,11 @@ describe('Per-Session Workspace Isolation', () => {
         url: '/api/v1/sessions',
         payload: { config: {} },
       })
-      const { sessionId, workspace } = JSON.parse(createResponse.body)
+      const { sessionId } = JSON.parse(createResponse.body)
+      const physicalPath = join(WORKSPACE_BASE, sessionId)
 
       // Verify workspace exists
-      expect(fs.existsSync(workspace)).toBe(true)
+      expect(fs.existsSync(physicalPath)).toBe(true)
 
       // Delete session
       const deleteResponse = await app.inject({
@@ -140,7 +155,7 @@ describe('Per-Session Workspace Isolation', () => {
       expect(deleteResponse.statusCode).toBe(200)
 
       // Verify workspace is deleted
-      expect(fs.existsSync(workspace)).toBe(false)
+      expect(fs.existsSync(physicalPath)).toBe(false)
     })
   })
 
@@ -154,8 +169,8 @@ describe('Per-Session Workspace Isolation', () => {
 
       expect(response.statusCode).toBe(200)
       const body = JSON.parse(response.body)
-      expect(body.workspace).toBeDefined()
-      expect(typeof body.workspace).toBe('string')
+      expect(body.cwd).toBeDefined()
+      expect(typeof body.cwd).toBe('string')
     })
 
     it('should include workspace in GET /api/v1/sessions/:id response', async () => {
@@ -175,7 +190,7 @@ describe('Per-Session Workspace Isolation', () => {
 
       expect(getResponse.statusCode).toBe(200)
       const body = JSON.parse(getResponse.body)
-      expect(body.workspace).toBeDefined()
+      expect(body.cwd).toBeDefined()
     })
 
     it('should include workspace in GET /api/v1/sessions list response', async () => {
@@ -185,7 +200,8 @@ describe('Per-Session Workspace Isolation', () => {
         url: '/api/v1/sessions',
         payload: { config: {} },
       })
-      const { sessionId, workspace: createdWorkspace } = JSON.parse(createResponse.body)
+      const { sessionId } = JSON.parse(createResponse.body)
+      const physicalPath = join(WORKSPACE_BASE, sessionId)
 
       // List sessions
       const listResponse = await app.inject({
@@ -197,12 +213,13 @@ describe('Per-Session Workspace Isolation', () => {
       const body = JSON.parse(listResponse.body)
       const session = body.sessions.find((s: any) => s.sessionId === sessionId)
       expect(session).toBeDefined()
-      expect(session.workspace).toBe(createdWorkspace)
+      expect(session.cwd).toBe('/workspace')
+      expect(session.sandboxEnabled).toBe(true)
     })
   })
 
   describe('Concurrent workspace isolation', () => {
-    it('should create different workspaces for different sessions', async () => {
+    it('should create different containers for different sessions', async () => {
       // Create two sessions
       const response1 = await app.inject({
         method: 'POST',
@@ -215,20 +232,22 @@ describe('Per-Session Workspace Isolation', () => {
         payload: { config: {} },
       })
 
-      const { sessionId: id1, workspace: ws1 } = JSON.parse(response1.body)
-      const { sessionId: id2, workspace: ws2 } = JSON.parse(response2.body)
+      const { sessionId: id1, containerId: cid1 } = JSON.parse(response1.body)
+      const { sessionId: id2, containerId: cid2 } = JSON.parse(response2.body)
+      const physicalPath1 = join(WORKSPACE_BASE, id1)
+      const physicalPath2 = join(WORKSPACE_BASE, id2)
 
       expect(id1).not.toBe(id2)
-      expect(ws1).not.toBe(ws2)
-      expect(fs.existsSync(ws1)).toBe(true)
-      expect(fs.existsSync(ws2)).toBe(true)
+      expect(cid1).not.toBe(cid2) // Different containers provide isolation
+      expect(fs.existsSync(physicalPath1)).toBe(true)
+      expect(fs.existsSync(physicalPath2)).toBe(true)
 
       // Clean up
       await app.inject({ method: 'DELETE', url: `/api/v1/sessions/${id1}` })
       await app.inject({ method: 'DELETE', url: `/api/v1/sessions/${id2}` })
 
-      expect(fs.existsSync(ws1)).toBe(false)
-      expect(fs.existsSync(ws2)).toBe(false)
+      expect(fs.existsSync(physicalPath1)).toBe(false)
+      expect(fs.existsSync(physicalPath2)).toBe(false)
     })
   })
 })

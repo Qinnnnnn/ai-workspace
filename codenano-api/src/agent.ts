@@ -1,4 +1,4 @@
-import { createAgent, coreTools, extendedTools, allTools } from 'codenano'
+import { createAgent, coreTools, extendedTools, allTools, sandboxCoreTools } from 'codenano'
 import type { Agent, ToolDef, AgentConfig, PermissionDecision } from 'codenano'
 
 const TOOL_PRESETS = {
@@ -11,7 +11,6 @@ export type ToolPreset = keyof typeof TOOL_PRESETS
 
 export interface AgentFactoryConfig extends Omit<AgentConfig, 'tools'> {
   toolPreset?: ToolPreset
-  tools?: ToolDef[]
   toolPermissions?: Record<string, 'allow' | 'deny'>
 }
 
@@ -20,13 +19,15 @@ export interface AgentFactoryConfig extends Omit<AgentConfig, 'tools'> {
  * Replaces subprocess spawning with in-process agent creation.
  */
 export function createAgentInstance(config: AgentFactoryConfig): Agent {
-  const { toolPreset = 'core', tools: customTools, toolPermissions, ...agentConfig } = config
+  const { toolPreset = 'core', toolPermissions, ...agentConfig } = config
 
-  // Resolve tools - custom tools take precedence
-  let tools: ToolDef[] = customTools ?? []
-
-  // If no custom tools, use preset
-  if (tools.length === 0) {
+  // Determine tools based on containerId
+  let tools: ToolDef[]
+  if ((agentConfig as any).containerId) {
+    // Sandbox mode: use sandbox tools
+    tools = sandboxCoreTools()
+  } else {
+    // Non-sandbox mode: use preset
     const presetFn = TOOL_PRESETS[toolPreset] ?? coreTools
     tools = presetFn()
   }

@@ -7,11 +7,18 @@ import { costRoutes } from './routes/cost.js'
 import { gitRoutes } from './routes/git.js'
 import { skillsRoutes } from './routes/skills.js'
 import { getSessionRegistry } from './services/session-registry.js'
+import { checkDockerHealth } from './services/docker-service.js'
 
 // Validate required env vars
 if (!process.env.ANTHROPIC_AUTH_TOKEN) {
   console.error('ANTHROPIC_AUTH_TOKEN is required')
   process.exit(1)
+}
+
+// Validate Docker is available
+const dockerHealthy = await checkDockerHealth()
+if (!dockerHealthy) {
+  console.warn('Warning: Docker daemon is not accessible. Sandbox features will be disabled.')
 }
 
 const PORT = parseInt(process.env.AGENT_SERVICE_PORT ?? '8000', 10)

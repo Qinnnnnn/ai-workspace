@@ -2,6 +2,14 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import Fastify, { FastifyInstance } from 'fastify'
 import cors from '@fastify/cors'
 
+// Mock docker-service
+vi.mock('../src/services/docker-service.js', () => ({
+  checkDockerHealth: vi.fn().mockResolvedValue(true),
+  createContainer: vi.fn().mockResolvedValue('mock-container-id'),
+  startContainer: vi.fn().mockResolvedValue(undefined),
+  stopContainer: vi.fn().mockResolvedValue(undefined),
+}))
+
 // Mock codenano
 vi.mock('codenano', async () => {
   const actual = await vi.importActual('codenano')
@@ -102,7 +110,7 @@ describe('API Routes', () => {
       expect(response.statusCode).toBe(200)
       const body = JSON.parse(response.body)
       expect(body.sessionId).toBeDefined()
-      expect(body.workspace).toBeDefined()
+      expect(body.cwd).toBeDefined()
     })
 
     it('GET /api/v1/sessions - lists sessions', async () => {

@@ -3,6 +3,7 @@ import { getSessionStorageDir } from 'codenano'
 import type { ToolPermission } from '../types/index.js'
 import fs from 'fs'
 import path from 'path'
+import { stopContainer } from './docker-service.js'
 
 const SB_TTL_MINUTES = parseInt(process.env.SB_TTL_MINUTES ?? '30', 10)
 const CLEANUP_INTERVAL_MS = 60000
@@ -15,6 +16,7 @@ export interface SessionEntry {
   lastActivity: Date
   toolPermissions: Record<string, ToolPermission>
   cwd: string
+  containerId: string | null
 }
 
 export class SessionRegistry {
@@ -48,6 +50,7 @@ export class SessionRegistry {
   register(sessionId: string, agent: Agent, session: Session, options: {
     toolPermissions?: Record<string, ToolPermission>
     cwd: string
+    containerId: string | null
   }): void {
     const entry: SessionEntry = {
       agent,
@@ -57,6 +60,7 @@ export class SessionRegistry {
       lastActivity: new Date(),
       toolPermissions: options.toolPermissions ?? {},
       cwd: options.cwd,
+      containerId: options.containerId,
     }
 
     this.sessions.set(sessionId, entry)
@@ -78,12 +82,14 @@ export class SessionRegistry {
     createdAt: string
     lastActivity: string
     cwd: string
+    containerId: string | null
   }> {
     return Array.from(this.sessions.values()).map((entry) => ({
       sessionId: entry.sessionId,
       createdAt: entry.createdAt.toISOString(),
       lastActivity: entry.lastActivity.toISOString(),
       cwd: entry.cwd,
+      containerId: entry.containerId,
     }))
   }
 
@@ -96,6 +102,15 @@ export class SessionRegistry {
       entry.session.abort()
     } catch {
       // Ignore abort errors
+    }
+
+    // Stop and remove Docker container
+    if (entry.containerId) {
+      try {
+        await stopContainer(entry.containerId)
+      } catch {
+        // Ignore container cleanup errors
+      }
     }
 
     // Delete session JSONL file

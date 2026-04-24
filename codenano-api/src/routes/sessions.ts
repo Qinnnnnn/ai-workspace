@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 import { loadSession, listSessions as codenanoListSessions, getSessionStorageDir } from 'codenano'
 import { createAgentInstance } from '../agent.js'
 import { getSessionRegistry, type SessionEntry } from '../services/session-registry.js'
+import { createContainer, startContainer, checkDockerHealth } from '../services/docker-service.js'
 import type {
   SessionCreateBody,
   SendMessageBody,
@@ -9,7 +10,7 @@ import type {
 } from '../types/index.js'
 import type { Agent, Session, ToolDef } from 'codenano'
 import { homedir } from 'os'
-import { mkdirSync } from 'fs'
+import { mkdirSync, rmSync } from 'fs'
 import { join } from 'path'
 
 const SSE_DELIMITER = '\n\n'
@@ -33,10 +34,26 @@ export async function sessionsRoutes(fastify: FastifyInstance): Promise<void> {
 
     // Create session ID and workspace
     const sessionId = resumeSessionId ?? crypto.randomUUID()
-    const cwd = join(WORKSPACE_BASE, sessionId)
+    const physicalPath = join(WORKSPACE_BASE, sessionId)
 
     // Create workspace directory
-    mkdirSync(cwd, { recursive: true })
+    mkdirSync(physicalPath, { recursive: true })
+
+    // Create and start Docker container (sandbox mode)
+    // Docker is required - fail fast if unavailable
+    let containerId: string | null = null
+    try {
+      containerId = await createContainer(sessionId, physicalPath)
+      await startContainer(containerId)
+    } catch (err) {
+      // Clean up workspace directory on failure
+      try { rmSync(physicalPath, { recursive: true, force: true }) } catch { /* ignore */ }
+      const message = err instanceof Error ? err.message : String(err)
+      return reply.status(503).send({
+        error: 'Docker unavailable',
+        message: `Cannot create session: ${message}. Sandbox mode requires Docker.`,
+      })
+    }
 
     // Build persistence config
     const persistence: { enabled: boolean; storageDir?: string; resumeSessionId?: string } = {
@@ -48,6 +65,7 @@ export async function sessionsRoutes(fastify: FastifyInstance): Promise<void> {
     }
 
     // Build agent config
+    // Sandbox mode: cwd='/workspace' (logical), hostWorkspaceDir=physicalPath
     const agentConfig = {
       model: config.model ?? process.env.ANTHROPIC_MODEL ?? 'claude-sonnet-4-6',
       apiKey: process.env.ANTHROPIC_AUTH_TOKEN,
@@ -72,8 +90,9 @@ export async function sessionsRoutes(fastify: FastifyInstance): Promise<void> {
       persistence,
       memory: config.memory,
       toolPreset: config.toolPreset,
-      tools: config.tools as ToolDef[],
-      cwd,  // Pass cwd to agent config
+      cwd: '/workspace',
+      hostWorkspaceDir: physicalPath,
+      containerId,
     }
 
     // Create agent with direct library call
@@ -88,10 +107,16 @@ export async function sessionsRoutes(fastify: FastifyInstance): Promise<void> {
     // Register in registry
     registry.register(sessionId, agent, session, {
       toolPermissions: toolPermissions as Record<string, ToolPermission>,
-      cwd,
+      cwd: physicalPath,
+      containerId,
     })
 
-    return reply.send({ sessionId, cwd })
+    return reply.send({
+      sessionId,
+      cwd: '/workspace',
+      sandboxEnabled: true,
+      containerId,
+    })
   })
 
   // List all sessions
@@ -110,12 +135,16 @@ export async function sessionsRoutes(fastify: FastifyInstance): Promise<void> {
     }
 
     for (const entry of activeSessions) {
+      const isSandbox = entry.containerId !== null
+      const virtualCwd = isSandbox ? '/workspace' : entry.cwd
       if (sessionMap.has(entry.sessionId)) {
-        const existing = sessionMap.get(entry.sessionId)
+        const existing = sessionMap.get(entry.sessionId) as any
         sessionMap.set(entry.sessionId, {
           ...existing,
           lastActivity: entry.lastActivity,
-          cwd: entry.cwd,
+          cwd: virtualCwd,
+          sandboxEnabled: isSandbox,
+          containerId: entry.containerId ?? undefined,
           active: true,
         })
       } else {
@@ -123,7 +152,9 @@ export async function sessionsRoutes(fastify: FastifyInstance): Promise<void> {
           sessionId: entry.sessionId,
           createdAt: entry.createdAt,
           lastActivity: entry.lastActivity,
-          cwd: entry.cwd,
+          cwd: virtualCwd,
+          sandboxEnabled: isSandbox,
+          containerId: entry.containerId ?? undefined,
           active: true,
         })
       }
@@ -145,7 +176,9 @@ export async function sessionsRoutes(fastify: FastifyInstance): Promise<void> {
 
     return reply.send({
       sessionId: id,
-      cwd: entry.cwd,
+      cwd: entry.containerId ? '/workspace' : entry.cwd,
+      sandboxEnabled: entry.containerId !== null,
+      containerId: entry.containerId,
       createdAt: entry.createdAt.toISOString(),
       lastActivity: entry.lastActivity.toISOString(),
     })

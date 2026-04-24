@@ -56,15 +56,15 @@ describe('SessionRegistry', () => {
     const agent = createAgent({ model: 'claude-sonnet-4-6' })
     const session = agent.session('test-session')
     const registrySessionId = 'test-session-id'
-    const workspace = join(WORKSPACE_BASE, registrySessionId)
+    const cwd = join(WORKSPACE_BASE, registrySessionId)
 
-    registry.register(registrySessionId, agent, session, { workspace })
+    registry.register(registrySessionId, agent, session, { cwd, containerId: null })
 
     const entry = registry.get(registrySessionId)
     expect(entry).toBeDefined()
     expect(entry!.agent).toBe(agent)
     expect(entry!.session).toBe(session)
-    expect(entry!.workspace).toBe(workspace)
+    expect(entry!.cwd).toBe(cwd)
   })
 
   it('should return undefined for nonexistent session', () => {
@@ -75,30 +75,30 @@ describe('SessionRegistry', () => {
   it('should list sessions with workspace', async () => {
     const agent1 = createAgent({ model: 'claude-sonnet-4-6' })
     const session1 = agent1.session('session-1')
-    const ws1 = join(WORKSPACE_BASE, 'session-1')
+    const cwd1 = join(WORKSPACE_BASE, 'session-1')
 
     const agent2 = createAgent({ model: 'claude-sonnet-4-6' })
     const session2 = agent2.session('session-2')
-    const ws2 = join(WORKSPACE_BASE, 'session-2')
+    const cwd2 = join(WORKSPACE_BASE, 'session-2')
 
-    registry.register('session-1', agent1, session1, { workspace: ws1 })
-    registry.register('session-2', agent2, session2, { workspace: ws2 })
+    registry.register('session-1', agent1, session1, { cwd: cwd1, containerId: null })
+    registry.register('session-2', agent2, session2, { cwd: cwd2, containerId: null })
 
     const sessions = registry.list()
 
     expect(sessions).toHaveLength(2)
     expect(sessions.map(s => s.sessionId)).toContain('session-1')
     expect(sessions.map(s => s.sessionId)).toContain('session-2')
-    expect(sessions.find(s => s.sessionId === 'session-1')!.workspace).toBe(ws1)
-    expect(sessions.find(s => s.sessionId === 'session-2')!.workspace).toBe(ws2)
+    expect(sessions.find(s => s.sessionId === 'session-1')!.cwd).toBe(cwd1)
+    expect(sessions.find(s => s.sessionId === 'session-2')!.cwd).toBe(cwd2)
   })
 
   it('should touch a session to update lastActivity', async () => {
     const agent = createAgent({ model: 'claude-sonnet-4-6' })
     const session = agent.session('session-touch')
-    const workspace = join(WORKSPACE_BASE, 'session-touch')
+    const cwd = join(WORKSPACE_BASE, 'session-touch')
 
-    registry.register('session-touch', agent, session, { workspace })
+    registry.register('session-touch', agent, session, { cwd, containerId: null })
     const entry1 = registry.get('session-touch')!
 
     // Small delay to ensure time difference
@@ -113,18 +113,18 @@ describe('SessionRegistry', () => {
   it('should destroy a session', async () => {
     const agent = createAgent({ model: 'claude-sonnet-4-6' })
     const session = agent.session('session-destroy')
-    const workspace = join(WORKSPACE_BASE, 'session-destroy')
+    const cwd = join(WORKSPACE_BASE, 'session-destroy')
 
     // Create workspace directory first
-    fs.mkdirSync(workspace, { recursive: true })
+    fs.mkdirSync(cwd, { recursive: true })
 
-    registry.register('session-destroy', agent, session, { workspace })
+    registry.register('session-destroy', agent, session, { cwd, containerId: null })
     expect(registry.get('session-destroy')).toBeDefined()
 
     await registry.destroy('session-destroy')
     expect(registry.get('session-destroy')).toBeUndefined()
     // Workspace should be cleaned up
-    expect(fs.existsSync(workspace)).toBe(false)
+    expect(fs.existsSync(cwd)).toBe(false)
   })
 
   it('should resolve toolPreset to correct tools', async () => {
@@ -139,9 +139,9 @@ describe('SessionRegistry', () => {
     // Verify registry can hold sessions
     const agent = createAgent({ model: 'claude-sonnet-4-6' })
     const session = agent.session('test-session')
-    const workspace = join(WORKSPACE_BASE, 'test-session')
+    const cwd = join(WORKSPACE_BASE, 'test-session')
 
-    registry.register('test-session', agent, session, { workspace })
+    registry.register('test-session', agent, session, { cwd, containerId: null })
     expect(registry.get('test-session')).toBeDefined()
   })
 
@@ -156,9 +156,9 @@ describe('SessionRegistry', () => {
     const agents = workspaces.map(() => createAgent({ model: 'claude-sonnet-4-6' }))
     const sessions = agents.map((agent, i) => agent.session(`session-${i}`))
 
-    registry.register('session-1', agents[0], sessions[0], { workspace: workspaces[0] })
-    registry.register('session-2', agents[1], sessions[1], { workspace: workspaces[1] })
-    registry.register('session-3', agents[2], sessions[2], { workspace: workspaces[2] })
+    registry.register('session-1', agents[0], sessions[0], { cwd: workspaces[0], containerId: null })
+    registry.register('session-2', agents[1], sessions[1], { cwd: workspaces[1], containerId: null })
+    registry.register('session-3', agents[2], sessions[2], { cwd: workspaces[2], containerId: null })
 
     expect(registry.list()).toHaveLength(3)
 
