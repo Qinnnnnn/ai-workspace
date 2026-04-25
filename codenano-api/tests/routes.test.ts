@@ -3,12 +3,14 @@ import Fastify, { FastifyInstance } from 'fastify'
 import cors from '@fastify/cors'
 
 // Mock docker-service
-vi.mock('../src/services/docker-service.js', () => ({
+const dockerMocks = vi.hoisted(() => ({
   checkDockerHealth: vi.fn().mockResolvedValue(true),
   createContainer: vi.fn().mockResolvedValue('mock-container-id'),
   startContainer: vi.fn().mockResolvedValue(undefined),
   stopContainer: vi.fn().mockResolvedValue(undefined),
 }))
+
+vi.mock('../src/services/docker-service.js', () => dockerMocks)
 
 // Mock codenano
 vi.mock('codenano', async () => {
@@ -152,6 +154,73 @@ describe('API Routes', () => {
       })
 
       expect(response.statusCode).toBe(404)
+    })
+
+    it('POST /api/v1/sessions - sandbox:false skips Docker and returns sandboxEnabled:false', async () => {
+      // Reset mocks
+      dockerMocks.createContainer.mockClear()
+      dockerMocks.startContainer.mockClear()
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/v1/sessions',
+        payload: {
+          config: { sandbox: false },
+        },
+      })
+
+      expect(response.statusCode).toBe(200)
+      const body = JSON.parse(response.body)
+      expect(body.sandboxEnabled).toBe(false)
+      expect(body.containerId).toBeUndefined()
+      expect(body.cwd).toContain('.agent-core/workspaces/')
+      // Docker should not be called
+      expect(dockerMocks.createContainer).not.toHaveBeenCalled()
+      expect(dockerMocks.startContainer).not.toHaveBeenCalled()
+    })
+
+    it('POST /api/v1/sessions - sandbox:true (default) calls Docker', async () => {
+      // Reset mocks
+      dockerMocks.createContainer.mockClear()
+      dockerMocks.startContainer.mockClear()
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/v1/sessions',
+        payload: {
+          config: { sandbox: true },
+        },
+      })
+
+      expect(response.statusCode).toBe(200)
+      const body = JSON.parse(response.body)
+      expect(body.sandboxEnabled).toBe(true)
+      expect(body.containerId).toBe('mock-container-id')
+      expect(body.cwd).toBe('/workspace')
+      // Docker should be called
+      expect(dockerMocks.createContainer).toHaveBeenCalled()
+      expect(dockerMocks.startContainer).toHaveBeenCalled()
+    })
+
+    it('POST /api/v1/sessions - default (no sandbox field) calls Docker for backward compat', async () => {
+      // Reset mocks
+      dockerMocks.createContainer.mockClear()
+      dockerMocks.startContainer.mockClear()
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/v1/sessions',
+        payload: {
+          config: {},
+        },
+      })
+
+      expect(response.statusCode).toBe(200)
+      const body = JSON.parse(response.body)
+      expect(body.sandboxEnabled).toBe(true)
+      // Docker should be called (backward compatible)
+      expect(dockerMocks.createContainer).toHaveBeenCalled()
+      expect(dockerMocks.startContainer).toHaveBeenCalled()
     })
   })
 

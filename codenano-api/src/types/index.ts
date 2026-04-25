@@ -42,6 +42,7 @@ export interface SessionCreateConfig {
   appendSystemPrompt?: string
 
   // Execution config
+  sandbox?: boolean
   maxTurns?: number
   thinkingConfig?: 'adaptive' | 'disabled'
   maxOutputTokens?: number

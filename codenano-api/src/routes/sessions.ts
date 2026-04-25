@@ -39,20 +39,41 @@ export async function sessionsRoutes(fastify: FastifyInstance): Promise<void> {
     // Create workspace directory
     mkdirSync(physicalPath, { recursive: true })
 
-    // Create and start Docker container (sandbox mode)
-    // Docker is required - fail fast if unavailable
+    // Determine runtime mode
+    const isSandbox = config.sandbox !== false
+
     let containerId: string | null = null
-    try {
-      containerId = await createContainer(sessionId, physicalPath)
-      await startContainer(containerId)
-    } catch (err) {
-      // Clean up workspace directory on failure
-      try { rmSync(physicalPath, { recursive: true, force: true }) } catch { /* ignore */ }
-      const message = err instanceof Error ? err.message : String(err)
-      return reply.status(503).send({
-        error: 'Docker unavailable',
-        message: `Cannot create session: ${message}. Sandbox mode requires Docker.`,
-      })
+    let runtime: RuntimeContext
+
+    if (isSandbox) {
+      // Create and start Docker container (sandbox mode)
+      // Docker is required - fail fast if unavailable
+      try {
+        containerId = await createContainer(sessionId, physicalPath)
+        await startContainer(containerId)
+      } catch (err) {
+        // Clean up workspace directory on failure
+        try { rmSync(physicalPath, { recursive: true, force: true }) } catch { /* ignore */ }
+        const message = err instanceof Error ? err.message : String(err)
+        return reply.status(503).send({
+          error: 'Docker unavailable',
+          message: `Cannot create session: ${message}. Sandbox mode requires Docker.`,
+        })
+      }
+
+      // Build runtime context for sandbox mode
+      runtime = {
+        type: 'sandbox',
+        cwd: '/workspace',
+        hostWorkspaceDir: physicalPath,
+        containerId,
+      }
+    } else {
+      // Local mode - no Docker, use local filesystem
+      runtime = {
+        type: 'local',
+        cwd: physicalPath,
+      }
     }
 
     // Build persistence config
@@ -62,14 +83,6 @@ export async function sessionsRoutes(fastify: FastifyInstance): Promise<void> {
     }
     if (resumeSessionId) {
       persistence.resumeSessionId = resumeSessionId
-    }
-
-    // Build runtime context for sandbox mode
-    const runtime: RuntimeContext = {
-      type: 'sandbox',
-      cwd: '/workspace',
-      hostWorkspaceDir: physicalPath,
-      containerId,
     }
 
     // Passthrough config with runtime context added
@@ -99,9 +112,9 @@ export async function sessionsRoutes(fastify: FastifyInstance): Promise<void> {
 
     return reply.send({
       sessionId,
-      cwd: '/workspace',
-      sandboxEnabled: true,
-      containerId,
+      cwd: isSandbox ? '/workspace' : physicalPath,
+      sandboxEnabled: isSandbox,
+      containerId: containerId ?? undefined,
     })
   })
 
