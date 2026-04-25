@@ -8,6 +8,9 @@ interface UseStreamCallbacks {
   onThinking: (text: string) => void
   onToolUse: (event: Extract<StreamEvent, { type: 'tool_use' }>) => void
   onToolResult: (event: Extract<StreamEvent, { type: 'tool_result' }>) => void
+  onQueryStart?: () => void
+  onTurnStart?: () => void
+  onTurnEnd?: () => void
   onDone: (finalText: string) => void
   onError: (error: string) => void
 }
@@ -55,7 +58,16 @@ export function useStream(callbacks: UseStreamCallbacks) {
               callbacks.onToolResult(event)
               break
 
+            case 'turn_start':
+              callbacks.onTurnStart?.()
+              break
+
             case 'turn_end':
+              callbacks.onTurnEnd?.()
+              break
+
+            case 'query_start':
+              callbacks.onQueryStart?.()
               break
 
             case 'error':

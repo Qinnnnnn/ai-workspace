@@ -9,6 +9,7 @@ interface UseSessionsReturn {
   refresh: () => Promise<void>
   create: (config?: { model?: string; toolPreset?: string }) => Promise<string | null>
   remove: (sessionId: string) => Promise<void>
+  clearError: () => void
 }
 
 export function useSessions(): UseSessionsReturn {
@@ -68,5 +69,5 @@ export function useSessions(): UseSessionsReturn {
     [],
   )
 
-  return { sessions, loading, error, refresh, create, remove }
+  return { sessions, loading, error, refresh, create, remove, clearError: () => setError(null) }
 }

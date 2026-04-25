@@ -2,7 +2,7 @@ import Docker from 'dockerode'
 import { execSync } from 'child_process'
 import os from 'os'
 
-const DOCKER_IMAGE = process.env.SANDBOX_DOCKER_IMAGE ?? 'codenano-sandbox:v1'
+const DOCKER_IMAGE = process.env.SANDBOX_DOCKER_IMAGE ?? 'codenano-sandbox:latest'
 const CONTAINER_CPU_LIMIT = parseFloat(process.env.SANDBOX_CPU_LIMIT ?? '0.5')
 const CONTAINER_MEMORY_LIMIT = process.env.SANDBOX_MEMORY_LIMIT ?? '512m'
 

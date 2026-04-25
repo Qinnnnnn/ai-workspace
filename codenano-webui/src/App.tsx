@@ -27,7 +27,7 @@ function readSidebarOpen(): boolean {
 }
 
 export default function App() {
-  const { sessions, loading, refresh, create, remove } = useSessions()
+  const { sessions, loading, error, refresh, create, remove, clearError } = useSessions()
   const [activeId, setActiveId] = useState<string | null>(null)
   const [desktopSidebarOpen, setDesktopSidebarOpen] = useState<boolean>(readSidebarOpen)
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
@@ -38,7 +38,7 @@ export default function App() {
   })
   const [isLoadingHistory, setIsLoadingHistory] = useState(false)
   const pendingFirstRef = useRef<string | null>(null)
-  const lastThinkingChunkRef = useRef<string>('')
+  const thinkingActiveRef = useRef(false)  // 追踪当前 thinking 是否活跃，遇到非 thinking 类型时设为 false
 
   const [historyMessages, setHistoryMessages] = useState<Record<string, UIMessage[]>>({})
   const [sessionMessages, setSessionMessages] = useState<Record<string, UIMessage[]>>({})
@@ -52,6 +52,7 @@ export default function App() {
   const streamCallbacks = useMemo(
     () => ({
       onText: (text: string) => {
+        thinkingActiveRef.current = false  // 遇到 text 说明 thinking 结束
         if (!activeId) return
         setSessionMessages((prev) => {
           const msgs = prev[activeId] ?? []
@@ -82,20 +83,23 @@ export default function App() {
           const last = msgs[msgs.length - 1]
           if (last && last.role === 'assistant' && last.isStreaming) {
             const content = Array.isArray(last.content) ? [...last.content] : [{ type: 'text' as const, text: String(last.content) }]
-            const lastBlock = content[content.length - 1]
-            if (lastBlock && lastBlock.type === 'thinking') {
-              // Duplicate chunk + lastBlock still thinking = backend bug, skip
-              if (thinking === lastThinkingChunkRef.current) {
-                return prev
+            // 遇到非 thinking 类型后，下次 thinking 是新的思考周期，创建新 block
+            if (thinkingActiveRef.current) {
+              // 找到最后一个 thinking block 追加
+              const lastThinkingIdx = content.findLastIndex((b: ContentBlock) => b.type === 'thinking')
+              if (lastThinkingIdx !== -1) {
+                (content[lastThinkingIdx] as Extract<ContentBlock, { type: 'thinking' }>).thinking += thinking
+              } else {
+                content.push({ type: 'thinking', thinking })
               }
-              lastBlock.thinking += thinking
-              lastThinkingChunkRef.current = thinking
             } else {
+              // 新的思考周期，创建新 block
               content.push({ type: 'thinking', thinking })
-              lastThinkingChunkRef.current = thinking
+              thinkingActiveRef.current = true
             }
             return { ...prev, [activeId]: [...msgs.slice(0, -1), { ...last, content }] }
           }
+          thinkingActiveRef.current = true
           return {
             ...prev,
             [activeId]: [
@@ -106,6 +110,7 @@ export default function App() {
         })
       },
       onToolUse: (event: Extract<StreamEvent, { type: 'tool_use' }>) => {
+        thinkingActiveRef.current = false  // 遇到 tool_use 说明 thinking 结束
         if (!activeId) return
         setSessionMessages((prev) => {
           const msgs = prev[activeId] ?? []
@@ -131,6 +136,7 @@ export default function App() {
         })
       },
       onToolResult: (event: Extract<StreamEvent, { type: 'tool_result' }>) => {
+        thinkingActiveRef.current = false  // 遇到 tool_result 说明 thinking 结束
         if (!activeId) return
         setSessionMessages((prev) => {
           const msgs = prev[activeId] ?? []
@@ -147,9 +153,18 @@ export default function App() {
           return prev
         })
       },
+      onQueryStart: () => {
+        thinkingActiveRef.current = false  // 新查询开始，重置 thinking 状态
+      },
+      onTurnStart: () => {
+        thinkingActiveRef.current = false  // 新 turn 开始，重置 thinking 状态
+      },
+      onTurnEnd: () => {
+        thinkingActiveRef.current = false  // turn 结束，thinking 也结束
+      },
       onDone: () => {
+        thinkingActiveRef.current = false
         if (!activeId) return
-        lastThinkingChunkRef.current = ''
         setSessionMessages((prev) => {
           const msgs = prev[activeId] ?? []
           const last = msgs[msgs.length - 1]
@@ -161,6 +176,7 @@ export default function App() {
         setSessionStreaming((prev) => ({ ...prev, [activeId]: false }))
       },
       onError: (error: string) => {
+        thinkingActiveRef.current = false
         if (!activeId) return
         setSessionMessages((prev) => {
           const msgs = prev[activeId] ?? []
@@ -386,6 +402,23 @@ export default function App() {
               </Button>
               <Button variant="destructive" onClick={() => void handleConfirmDelete()}>
                 {i18n.delete}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Error dialog */}
+      {error && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-background rounded-xl border p-6 shadow-2xl max-w-sm mx-4 animate-in fade-in zoom-in duration-200">
+            <h2 className="text-lg font-semibold mb-2 text-destructive">错误</h2>
+            <p className="text-sm text-muted-foreground mb-6">
+              {error}
+            </p>
+            <div className="flex gap-3 justify-end">
+              <Button variant="default" onClick={() => clearError()}>
+                确定
               </Button>
             </div>
           </div>
