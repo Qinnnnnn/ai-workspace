@@ -1,6 +1,6 @@
-import type { Agent, Session, StreamEvent } from 'codenano'
+import type { Agent, Session, StreamEvent, RuntimeContext } from 'codenano'
 
-export type { Agent, Session, StreamEvent }
+export type { Agent, Session, StreamEvent, RuntimeContext }
 
 export type ToolPermission = 'allow' | 'deny'
 
@@ -22,8 +22,41 @@ export interface SessionEntry {
   toolPermissions: Record<string, ToolPermission>
 }
 
+export interface SessionCreateConfig {
+  // Model config
+  model?: string
+  apiKey?: string
+  baseURL?: string
+  provider?: 'anthropic' | 'bedrock'
+  awsRegion?: string
+  fallbackModel?: string
+
+  // Tool config
+  toolPreset?: 'core' | 'extended' | 'all'
+
+  // Prompt config
+  systemPrompt?: string
+  identity?: string
+  language?: string
+  overrideSystemPrompt?: string
+  appendSystemPrompt?: string
+
+  // Execution config
+  maxTurns?: number
+  thinkingConfig?: 'adaptive' | 'disabled'
+  maxOutputTokens?: number
+  maxOutputRecoveryAttempts?: number
+
+  // Advanced config
+  autoCompact?: boolean
+  autoLoadInstructions?: boolean
+  toolResultBudget?: boolean
+  maxOutputTokensCap?: boolean
+  streamingToolExecution?: boolean
+}
+
 export interface SessionCreateBody {
-  config: ServiceAgentConfig
+  config: SessionCreateConfig
   resumeSessionId?: string
   toolPermissions?: Record<string, ToolPermission>
 }

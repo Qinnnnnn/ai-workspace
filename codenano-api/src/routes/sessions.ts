@@ -1,14 +1,14 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 import { loadSession, listSessions as codenanoListSessions, getSessionStorageDir } from 'codenano'
 import { createAgentInstance } from '../agent.js'
-import { getSessionRegistry, type SessionEntry } from '../services/session-registry.js'
-import { createContainer, startContainer, checkDockerHealth } from '../services/docker-service.js'
+import { getSessionRegistry } from '../services/session-registry.js'
+import { createContainer, startContainer } from '../services/docker-service.js'
 import type {
   SessionCreateBody,
   SendMessageBody,
   ToolPermission,
 } from '../types/index.js'
-import type { Agent, Session, ToolDef } from 'codenano'
+import type { RuntimeContext } from 'codenano'
 import { homedir } from 'os'
 import { mkdirSync, rmSync } from 'fs'
 import { join } from 'path'
@@ -64,35 +64,21 @@ export async function sessionsRoutes(fastify: FastifyInstance): Promise<void> {
       persistence.resumeSessionId = resumeSessionId
     }
 
-    // Build agent config
-    // Sandbox mode: cwd='/workspace' (logical), hostWorkspaceDir=physicalPath
-    const agentConfig = {
-      model: config.model ?? process.env.ANTHROPIC_MODEL ?? 'claude-sonnet-4-6',
-      apiKey: process.env.ANTHROPIC_AUTH_TOKEN,
-      baseURL: config.baseURL ?? process.env.ANTHROPIC_BASE_URL,
-      maxTurns: config.maxTurns,
-      thinkingConfig: config.thinkingConfig,
-      maxOutputTokens: config.maxOutputTokens,
-      identity: config.identity,
-      language: config.language,
-      overrideSystemPrompt: config.overrideSystemPrompt,
-      appendSystemPrompt: config.appendSystemPrompt,
-      provider: config.provider,
-      awsRegion: config.awsRegion,
-      autoCompact: config.autoCompact,
-      fallbackModel: config.fallbackModel,
-      maxOutputRecoveryAttempts: config.maxOutputRecoveryAttempts,
-      autoLoadInstructions: config.autoLoadInstructions,
-      toolResultBudget: config.toolResultBudget,
-      maxOutputTokensCap: config.maxOutputTokensCap,
-      streamingToolExecution: config.streamingToolExecution,
-      mcpServers: config.mcpServers,
-      persistence,
-      memory: config.memory,
-      toolPreset: config.toolPreset,
+    // Build runtime context for sandbox mode
+    const runtime: RuntimeContext = {
+      type: 'sandbox',
       cwd: '/workspace',
       hostWorkspaceDir: physicalPath,
       containerId,
+    }
+
+    // Passthrough config with runtime context added
+    const agentConfig: any = {
+      ...config,
+      runtime,
+      model: config.model ?? process.env.ANTHROPIC_MODEL ?? 'claude-sonnet-4-6',
+      apiKey: process.env.ANTHROPIC_AUTH_TOKEN,
+      baseURL: config.baseURL ?? process.env.ANTHROPIC_BASE_URL,
     }
 
     // Create agent with direct library call

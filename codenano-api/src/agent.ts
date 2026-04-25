@@ -17,24 +17,21 @@ export interface AgentFactoryConfig extends Omit<AgentConfig, 'tools'> {
 /**
  * Create an agent with codenano direct library integration.
  * Replaces subprocess spawning with in-process agent creation.
+ *
+ * Dispatches based on RuntimeContext type for compile-time safety.
  */
 export function createAgentInstance(config: AgentFactoryConfig): Agent {
-  const { toolPreset = 'core', toolPermissions, ...agentConfig } = config
+  const { toolPreset = 'core', toolPermissions, runtime } = config
 
-  // Determine tools based on containerId
-  let tools: ToolDef[]
-  if ((agentConfig as any).containerId) {
-    // Sandbox mode: use sandbox tools
-    tools = sandboxCoreTools()
-  } else {
-    // Non-sandbox mode: use preset
-    const presetFn = TOOL_PRESETS[toolPreset] ?? coreTools
-    tools = presetFn()
-  }
+  // Type-safe branching based on runtime context
+  const isSandbox = runtime?.type === 'sandbox'
+  const tools = isSandbox
+    ? sandboxCoreTools()
+    : TOOL_PRESETS[toolPreset]?.() ?? coreTools()
 
   // Build agent config with tool permission check
   const finalConfig: AgentConfig = {
-    ...agentConfig,
+    ...config,
     tools,
     canUseTool: (toolName: string): PermissionDecision => {
       const permission = toolPermissions?.[toolName] ?? 'allow'

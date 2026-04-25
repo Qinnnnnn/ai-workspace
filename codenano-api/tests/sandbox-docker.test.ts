@@ -17,7 +17,7 @@ import path from 'path'
 import os from 'os'
 import { v4 as uuidv4 } from 'uuid'
 
-const DOCKER_IMAGE = process.env.SANDBOX_DOCKER_IMAGE ?? 'codenano-sandbox:v1'
+const DOCKER_IMAGE = process.env.SANDBOX_DOCKER_IMAGE ?? 'codenano-sandbox:latest'
 const WORKSPACE_BASE = path.join(os.homedir(), '.agent-core', 'workspaces')
 const CONTAINER_STARTUP_TIMEOUT = 30000 // 30 seconds for container startup
 

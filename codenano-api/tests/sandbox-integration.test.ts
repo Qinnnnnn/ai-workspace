@@ -35,6 +35,7 @@ vi.mock('codenano', async () => {
     coreTools: vi.fn().mockReturnValue([]),
     extendedTools: vi.fn().mockReturnValue([]),
     allTools: vi.fn().mockReturnValue([]),
+    sandboxCoreTools: vi.fn().mockReturnValue([]),
     createAgent: vi.fn().mockImplementation(() => ({
       session: vi.fn().mockImplementation(() => ({
         id: `session-${Math.random().toString(36).slice(2)}`,
