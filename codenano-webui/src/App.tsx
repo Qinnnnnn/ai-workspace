@@ -337,7 +337,7 @@ export default function App() {
 
       {/* Mobile sidebar */}
       <Sheet open={mobileSidebarOpen} onOpenChange={setMobileSidebarOpen}>
-        <SheetContent showCloseButton={false} side="left" className="w-[279px] p-0 sm:max-w-[279px] lg:hidden">
+        <SheetContent showCloseButton={false} className="w-[279px] p-0 sm:max-w-[279px] lg:hidden">
           <SidebarInner {...sidebarProps} onCollapse={() => setMobileSidebarOpen(false)} />
         </SheetContent>
       </Sheet>
