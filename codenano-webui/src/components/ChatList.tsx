@@ -25,8 +25,8 @@ function titleFor(s: SessionSummary, fallbackTitle: string): string {
 }
 
 export function ChatList({ sessions, activeId, onSelect, onRequestDelete, loading }: ChatListProps) {
-  if (loading && sessions.length === 0) {
-    return <div className="px-3 py-6 text-[12px] text-muted-foreground">{i18n.loading}</div>
+  if (loading) {
+    return null
   }
 
   if (sessions.length === 0) {

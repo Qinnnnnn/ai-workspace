@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
 import { ChatList } from '@/components/ChatList'
-import { LoadingScreen } from '@/components/LoadingScreen'
 import { ThreadShell } from '@/components/thread/ThreadShell'
 import { useSessions } from '@/hooks/useSessions'
 import { useStream } from '@/hooks/useStream'
@@ -387,8 +386,19 @@ export default function App() {
   const currentMessages = activeId ? (sessionMessages[activeId] ?? []) : []
   const isCurrentlyStreaming = activeId ? (sessionStreaming[activeId] ?? false) : false
 
-  if (loading && sessions.length === 0) {
-    return <LoadingScreen />
+  if (loading) {
+    return (
+      <div className="boot-splash">
+        <div className="boot-splash-inner">
+          <div className="boot-spinner">
+            <div className="boot-glow" />
+            <div className="boot-ring" />
+            <div className="boot-dot" />
+          </div>
+          <span className="boot-label">正在加载</span>
+        </div>
+      </div>
+    )
   }
 
   return (

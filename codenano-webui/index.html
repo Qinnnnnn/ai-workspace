@@ -33,36 +33,81 @@
       }
 
       .boot-splash {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
         display: flex;
-        height: 100%;
         align-items: center;
         justify-content: center;
+        background: #ffffff;
+      }
+
+      html.dark .boot-splash {
+        background: #0f0f10;
       }
 
       .boot-splash-inner {
         display: flex;
+        flex-direction: column;
         align-items: center;
-        gap: 10px;
-        color: rgba(255, 255, 255, 0.74);
-        font-size: 14px;
+        gap: 24px;
       }
 
-      html:not(.dark) .boot-splash-inner {
-        color: rgba(10, 10, 10, 0.64);
+      .boot-spinner {
+        position: relative;
+        width: 56px;
+        height: 56px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .boot-glow {
+        position: absolute;
+        inset: 0;
+        border-radius: 9999px;
+        background: rgba(96, 165, 250, 0.2);
+        filter: blur(12px);
+        animation: boot-pulse 2s ease-in-out infinite;
+      }
+
+      .boot-ring {
+        position: absolute;
+        inset: 0;
+        border-radius: 9999px;
+        border: 3px solid rgba(148, 163, 184, 0.3);
+        border-top-color: rgba(59, 130, 246, 0.8);
+        animation: boot-spin 1.5s cubic-bezier(0.65, 0, 0.35, 1) infinite;
       }
 
       .boot-dot {
-        width: 8px;
-        height: 8px;
+        position: relative;
+        z-index: 1;
+        width: 10px;
+        height: 10px;
         border-radius: 9999px;
-        background: currentColor;
-        opacity: 0.75;
-        animation: boot-pulse 1s ease-in-out infinite;
+        background: rgba(59, 130, 246, 0.8);
+        animation: boot-pulse 2s ease-in-out infinite;
+      }
+
+      .boot-label {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.2em;
+        color: #94a3b8;
+      }
+
+      html.dark .boot-label {
+        color: #64748b;
       }
 
       @keyframes boot-pulse {
-        0%, 100% { transform: scale(0.9); opacity: 0.45; }
-        50% { transform: scale(1); opacity: 0.85; }
+        0%, 100% { opacity: 0.5; transform: scale(0.95); }
+        50% { opacity: 1; transform: scale(1); }
+      }
+
+      @keyframes boot-spin {
+        to { transform: rotate(360deg); }
       }
     </style>
     <script>
@@ -84,8 +129,12 @@
     <div id="root">
       <div class="boot-splash">
         <div class="boot-splash-inner">
-          <span class="boot-dot" aria-hidden="true"></span>
-          <span>Loading codenano…</span>
+          <div class="boot-spinner">
+            <div class="boot-glow"></div>
+            <div class="boot-ring"></div>
+            <div class="boot-dot"></div>
+          </div>
+          <span class="boot-label">正在加载</span>
         </div>
       </div>
     </div>

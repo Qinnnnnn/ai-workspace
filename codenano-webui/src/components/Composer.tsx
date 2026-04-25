@@ -72,10 +72,10 @@ export function Composer({
           isHero
             ? 'max-w-[40rem] border border-slate-200/70 bg-white/90 dark:border-white/10 dark:bg-card/80 shadow-[0_4px_20px_-6px_rgba(0,0,0,0.07)] dark:shadow-[0_4px_20px_-6px_rgba(0,0,0,0.4)]'
             : 'max-w-[74rem] border border-slate-200/60 bg-white/70 dark:border-white/10 dark:bg-card/60 shadow-[0_2px_14px_-4px_rgba(0,0,0,0.05)] dark:shadow-none',
-          'focus-within:-translate-y-px focus-within:border-slate-300/80 dark:focus-within:border-white/20',
+          'focus-within:border-slate-300/80 dark:focus-within:border-white/20',
           isHero
             ? 'focus-within:shadow-[0_12px_32px_-8px_rgba(0,0,0,0.12)] dark:focus-within:shadow-[0_12px_32px_-8px_rgba(0,0,0,0.5)]'
-            : 'focus-within:shadow-[0_8px_24px_-6px_rgba(0,0,0,0.08)] dark:focus-within:shadow-[0_8px_24px_-6px_rgba(0,0,0,0.35)]',
+            : 'focus-within:shadow-[0_8px_24px_-6px_rgba(0,0,0,0.12)] dark:focus-within:shadow-[0_8px_24px_-6px_rgba(0,0,0,0.4)]',
           disabled && 'opacity-50',
         )}
       >
