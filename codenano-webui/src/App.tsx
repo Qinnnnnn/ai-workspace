@@ -37,25 +37,25 @@ export default function App() {
     return document.documentElement.classList.contains('dark') ? 'dark' : 'light'
   })
   const [isLoadingHistory, setIsLoadingHistory] = useState(false)
-  const pendingFirstRef = useRef<string | null>(null)
-  const thinkingActiveRef = useRef(false)  // 追踪当前 thinking 是否活跃，遇到非 thinking 类型时设为 false
+  const thinkingActiveRef = useRef(false)
+  const streamSessionRef = useRef<string | null>(null)
 
   const [historyMessages, setHistoryMessages] = useState<Record<string, UIMessage[]>>({})
   const [sessionMessages, setSessionMessages] = useState<Record<string, UIMessage[]>>({})
   const [sessionStreaming, setSessionStreaming] = useState<Record<string, boolean>>({})
 
   const activeSession = useMemo<SessionSummary | null>(() => {
-    if (!activeId) return null
+    if (!streamSessionRef.current) return null
     return sessions.find((s) => s.sessionId === activeId) ?? null
   }, [sessions, activeId])
 
   const streamCallbacks = useMemo(
     () => ({
       onText: (text: string) => {
-        thinkingActiveRef.current = false  // 遇到 text 说明 thinking 结束
-        if (!activeId) return
+        thinkingActiveRef.current = false
+        if (!streamSessionRef.current) return
         setSessionMessages((prev) => {
-          const msgs = prev[activeId] ?? []
+          const msgs = prev[streamSessionRef.current!] ?? []
           const last = msgs[msgs.length - 1]
           if (last && last.role === 'assistant' && last.isStreaming) {
             const content = Array.isArray(last.content) ? last.content : [{ type: 'text' as const, text: last.content }]
@@ -65,11 +65,11 @@ export default function App() {
             } else {
               content.push({ type: 'text', text })
             }
-            return { ...prev, [activeId]: [...msgs.slice(0, -1), { ...last, content }] }
+            return { ...prev, [streamSessionRef.current!]: [...msgs.slice(0, -1), { ...last, content }] }
           }
           return {
             ...prev,
-            [activeId]: [
+            [streamSessionRef.current!]: [
               ...msgs,
               { id: uuid(), role: 'assistant', content: [{ type: 'text', text }], isStreaming: true, createdAt: Date.now() },
             ],
@@ -77,15 +77,13 @@ export default function App() {
         })
       },
       onThinking: (thinking: string) => {
-        if (!activeId) return
+        if (!streamSessionRef.current) return
         setSessionMessages((prev) => {
-          const msgs = prev[activeId] ?? []
+          const msgs = prev[streamSessionRef.current!] ?? []
           const last = msgs[msgs.length - 1]
           if (last && last.role === 'assistant' && last.isStreaming) {
             const content = Array.isArray(last.content) ? [...last.content] : [{ type: 'text' as const, text: String(last.content) }]
-            // 遇到非 thinking 类型后，下次 thinking 是新的思考周期，创建新 block
             if (thinkingActiveRef.current) {
-              // 找到最后一个 thinking block 追加
               const lastThinkingIdx = content.findLastIndex((b: ContentBlock) => b.type === 'thinking')
               if (lastThinkingIdx !== -1) {
                 (content[lastThinkingIdx] as Extract<ContentBlock, { type: 'thinking' }>).thinking += thinking
@@ -93,16 +91,15 @@ export default function App() {
                 content.push({ type: 'thinking', thinking })
               }
             } else {
-              // 新的思考周期，创建新 block
               content.push({ type: 'thinking', thinking })
               thinkingActiveRef.current = true
             }
-            return { ...prev, [activeId]: [...msgs.slice(0, -1), { ...last, content }] }
+            return { ...prev, [streamSessionRef.current!]: [...msgs.slice(0, -1), { ...last, content }] }
           }
           thinkingActiveRef.current = true
           return {
             ...prev,
-            [activeId]: [
+            [streamSessionRef.current!]: [
               ...msgs,
               { id: uuid(), role: 'assistant', content: [{ type: 'thinking', thinking }], isStreaming: true, createdAt: Date.now() },
             ],
@@ -111,9 +108,9 @@ export default function App() {
       },
       onToolUse: (event: Extract<StreamEvent, { type: 'tool_use' }>) => {
         thinkingActiveRef.current = false  // 遇到 tool_use 说明 thinking 结束
-        if (!activeId) return
+        if (!streamSessionRef.current) return
         setSessionMessages((prev) => {
-          const msgs = prev[activeId] ?? []
+          const msgs = prev[streamSessionRef.current!] ?? []
           const last = msgs[msgs.length - 1]
           if (last && last.role === 'assistant' && last.isStreaming) {
             const content = Array.isArray(last.content) ? [...last.content] : [{ type: 'text' as const, text: String(last.content) }]
@@ -124,11 +121,11 @@ export default function App() {
             } else {
               content.push({ type: 'tool_use', id: event.toolUseId, name: event.toolName, input: event.input })
             }
-            return { ...prev, [activeId]: [...msgs.slice(0, -1), { ...last, content }] }
+            return { ...prev, [streamSessionRef.current!]: [...msgs.slice(0, -1), { ...last, content }] }
           }
           return {
             ...prev,
-            [activeId]: [
+            [streamSessionRef.current!]: [
               ...msgs,
               { id: uuid(), role: 'assistant', content: [{ type: 'tool_use', id: event.toolUseId, name: event.toolName, input: event.input }], isStreaming: true, createdAt: Date.now() },
             ],
@@ -137,9 +134,9 @@ export default function App() {
       },
       onToolResult: (event: Extract<StreamEvent, { type: 'tool_result' }>) => {
         thinkingActiveRef.current = false  // 遇到 tool_result 说明 thinking 结束
-        if (!activeId) return
+        if (!streamSessionRef.current) return
         setSessionMessages((prev) => {
-          const msgs = prev[activeId] ?? []
+          const msgs = prev[streamSessionRef.current!] ?? []
           const last = msgs[msgs.length - 1]
           if (last && last.role === 'assistant' && last.isStreaming && Array.isArray(last.content)) {
             const content = [...last.content]
@@ -148,7 +145,7 @@ export default function App() {
               const toolBlock = content[toolIdx] as Extract<ContentBlock, { type: 'tool_use' }>
               content[toolIdx] = { ...toolBlock, result: { tool_use_id: event.toolUseId, content: event.output, is_error: event.isError } }
             }
-            return { ...prev, [activeId]: [...msgs.slice(0, -1), { ...last, content }] }
+            return { ...prev, [streamSessionRef.current!]: [...msgs.slice(0, -1), { ...last, content }] }
           }
           return prev
         })
@@ -164,25 +161,25 @@ export default function App() {
       },
       onDone: () => {
         thinkingActiveRef.current = false
-        if (!activeId) return
+        if (!streamSessionRef.current) return
         setSessionMessages((prev) => {
-          const msgs = prev[activeId] ?? []
+          const msgs = prev[streamSessionRef.current!] ?? []
           const last = msgs[msgs.length - 1]
           if (last && last.role === 'assistant' && last.isStreaming) {
-            return { ...prev, [activeId]: [...msgs.slice(0, -1), { ...last, isStreaming: false }] }
+            return { ...prev, [streamSessionRef.current!]: [...msgs.slice(0, -1), { ...last, isStreaming: false }] }
           }
           return prev
         })
-        setSessionStreaming((prev) => ({ ...prev, [activeId]: false }))
+        setSessionStreaming((prev) => ({ ...prev, [streamSessionRef.current!]: false }))
       },
       onError: (error: string) => {
         thinkingActiveRef.current = false
-        if (!activeId) return
+        if (!streamSessionRef.current) return
         setSessionMessages((prev) => {
-          const msgs = prev[activeId] ?? []
+          const msgs = prev[streamSessionRef.current!] ?? []
           return {
             ...prev,
-            [activeId]: [
+            [streamSessionRef.current!]: [
               ...msgs,
               {
                 id: uuid(),
@@ -194,10 +191,10 @@ export default function App() {
             ],
           }
         })
-        setSessionStreaming((prev) => ({ ...prev, [activeId]: false }))
+        setSessionStreaming((prev) => ({ ...prev, [streamSessionRef.current!]: false }))
       },
     }),
-    [activeId]
+    []
   )
 
   const { send: doSend } = useStream(streamCallbacks)
@@ -259,19 +256,30 @@ export default function App() {
     [loadHistory, historyMessages, sessionMessages]
   )
 
-  const handleNewChat = useCallback(async (): Promise<string | null> => {
-    const id = await create({})
-    if (id) {
-      setActiveId(id)
-      setSessionMessages((prev) => ({ ...prev, [id]: [] }))
-      setMobileSidebarOpen(false)
-    }
-    return id
-  }, [create])
+  const handleNewChat = useCallback(() => {
+    setActiveId(null)
+    setMobileSidebarOpen(false)
+  }, [])
 
   const handleSend = useCallback(
     async (content: string) => {
-      if (!activeId) return
+      if (!activeId) {
+        const id = await create({})
+        if (!id) return
+        setActiveId(id)
+        setSessionMessages((prev) => ({ ...prev, [id]: [] }))
+        setMobileSidebarOpen(false)
+        const userMsg: UIMessage = { id: uuid(), role: 'user', content, createdAt: Date.now() }
+        setSessionMessages((prev) => ({
+          ...prev,
+          [id]: [userMsg],
+        }))
+        setSessionStreaming((prev) => ({ ...prev, [id]: true }))
+        streamSessionRef.current = id
+        await doSend(id, content)
+        return
+      }
+      streamSessionRef.current = activeId
       const userMsg: UIMessage = { id: uuid(), role: 'user', content, createdAt: Date.now() }
       setSessionMessages((prev) => ({
         ...prev,
@@ -280,30 +288,8 @@ export default function App() {
       setSessionStreaming((prev) => ({ ...prev, [activeId]: true }))
       await doSend(activeId, content)
     },
-    [activeId, doSend]
+    [activeId, create, doSend],
   )
-
-  const handleWelcomeSend = useCallback(
-    async (content: string) => {
-      pendingFirstRef.current = content
-      const newId = await handleNewChat()
-      if (!newId) pendingFirstRef.current = null
-    },
-    [handleNewChat]
-  )
-
-  useEffect(() => {
-    if (!activeId || !pendingFirstRef.current) return
-    const content = pendingFirstRef.current
-    pendingFirstRef.current = null
-    const userMsg: UIMessage = { id: uuid(), role: 'user', content, createdAt: Date.now() }
-    setSessionMessages((prev) => ({
-      ...prev,
-      [activeId]: [...(prev[activeId] ?? []), userMsg],
-    }))
-    setSessionStreaming((prev) => ({ ...prev, [activeId]: true }))
-    doSend(activeId, content)
-  }, [activeId, doSend])
 
   const handleConfirmDelete = useCallback(async () => {
     if (!pendingDelete) return
@@ -370,11 +356,10 @@ export default function App() {
               else setMobileSidebarOpen((v) => !v)
             }}
             onGoHome={() => setActiveId(null)}
-            onNewChat={handleNewChat}
             messages={currentMessages}
             isStreaming={isCurrentlyStreaming}
             isLoadingHistory={isLoadingHistory}
-            onSend={activeSession ? handleSend : handleWelcomeSend}
+            onSend={handleSend}
           />
         </div>
 

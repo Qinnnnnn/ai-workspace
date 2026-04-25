@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { ThreadHeader } from './ThreadHeader'
 import { MessageList } from '@/components/MessageList'
 import { Composer } from '@/components/Composer'
@@ -11,7 +11,6 @@ interface ThreadShellProps {
   title: string
   onToggleSidebar: () => void
   onGoHome: () => void
-  onNewChat: () => Promise<string | null>
   messages: UIMessage[]
   isStreaming: boolean
   isLoadingHistory: boolean
@@ -23,37 +22,22 @@ export function ThreadShell({
   title,
   onToggleSidebar,
   onGoHome,
-  onNewChat,
   messages,
   isStreaming,
   isLoadingHistory,
   onSend,
 }: ThreadShellProps) {
   const [booting, setBooting] = useState(false)
-  const pendingFirstRef = useRef<string | null>(null)
 
   const handleWelcomeSend = useCallback(
     async (content: string) => {
       if (booting) return
       setBooting(true)
-      pendingFirstRef.current = content
-      const newId = await onNewChat()
-      if (!newId) {
-        pendingFirstRef.current = null
-        setBooting(false)
-      }
+      await onSend(content)
+      setBooting(false)
     },
-    [booting, onNewChat],
+    [booting, onSend],
   )
-
-  useEffect(() => {
-    if (!session) return
-    const pending = pendingFirstRef.current
-    if (!pending) return
-    pendingFirstRef.current = null
-    onSend(pending)
-    setBooting(false)
-  }, [session, onSend])
 
   useEffect(() => {
     const warm = () => preloadMarkdownText()

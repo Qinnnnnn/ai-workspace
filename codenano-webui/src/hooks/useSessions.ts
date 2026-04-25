@@ -59,14 +59,15 @@ export function useSessions(): UseSessionsReturn {
 
   const remove = useCallback(
     async (sessionId: string) => {
+      setSessions((prev) => prev.filter((s) => s.sessionId !== sessionId))
       try {
         await deleteSession(sessionId)
-        setSessions((prev) => prev.filter((s) => s.sessionId !== sessionId))
       } catch (e) {
         setError((e as Error).message)
+        await refresh()
       }
     },
-    [],
+    [refresh],
   )
 
   return { sessions, loading, error, refresh, create, remove, clearError: () => setError(null) }
