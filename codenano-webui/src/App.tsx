@@ -39,6 +39,8 @@ export default function App() {
   const [isLoadingHistory, setIsLoadingHistory] = useState(false)
   const thinkingActiveRef = useRef(false)
   const streamSessionRef = useRef<string | null>(null)
+  const pendingTextRef = useRef('')
+  const drainingRef = useRef<number | false>(false)
 
   const [historyMessages, setHistoryMessages] = useState<Record<string, UIMessage[]>>({})
   const [sessionMessages, setSessionMessages] = useState<Record<string, UIMessage[]>>({})
@@ -49,32 +51,54 @@ export default function App() {
     return sessions.find((s) => s.sessionId === activeId) ?? null
   }, [sessions, activeId])
 
-  const streamCallbacks = useMemo(
-    () => ({
-      onText: (text: string) => {
-        thinkingActiveRef.current = false
-        if (!streamSessionRef.current) return
+  const drainPendingText = () => {
+    if (!streamSessionRef.current) return
+    if (drainingRef.current) return
+    drainingRef.current = 1
+    const sessionId = streamSessionRef.current
+
+    const drain = () => {
+      if (!drainingRef.current || !sessionId) return
+      if (!pendingTextRef.current) {
+        drainingRef.current = false
+        return
+      }
+      const char = pendingTextRef.current[0]
+      if (char) {
+        pendingTextRef.current = pendingTextRef.current.slice(1)
         setSessionMessages((prev) => {
-          const msgs = prev[streamSessionRef.current!] ?? []
+          const msgs = prev[sessionId] ?? []
           const last = msgs[msgs.length - 1]
           if (last && last.role === 'assistant' && last.isStreaming) {
             const content = Array.isArray(last.content) ? last.content : [{ type: 'text' as const, text: last.content }]
             const lastBlock = content[content.length - 1]
             if (lastBlock && lastBlock.type === 'text') {
-              lastBlock.text += text
+              lastBlock.text += char
             } else {
-              content.push({ type: 'text', text })
+              content.push({ type: 'text', text: char })
             }
-            return { ...prev, [streamSessionRef.current!]: [...msgs.slice(0, -1), { ...last, content }] }
+            return { ...prev, [sessionId]: [...msgs.slice(0, -1), { ...last, content }] }
           }
-          return {
-            ...prev,
-            [streamSessionRef.current!]: [
-              ...msgs,
-              { id: uuid(), role: 'assistant', content: [{ type: 'text', text }], isStreaming: true, createdAt: Date.now() },
-            ],
-          }
+          return prev
         })
+        drainingRef.current = requestAnimationFrame(drain)
+      } else {
+        drainingRef.current = false
+      }
+    }
+
+    drainingRef.current = requestAnimationFrame(drain)
+  }
+
+  const streamCallbacks = useMemo(
+    () => ({
+      onText: (text: string) => {
+        thinkingActiveRef.current = false
+        if (!streamSessionRef.current) return
+        pendingTextRef.current += text
+        if (!drainingRef.current) {
+          drainPendingText()
+        }
       },
       onThinking: (thinking: string) => {
         if (!streamSessionRef.current) return
@@ -162,36 +186,79 @@ export default function App() {
       onDone: () => {
         thinkingActiveRef.current = false
         if (!streamSessionRef.current) return
-        setSessionMessages((prev) => {
-          const msgs = prev[streamSessionRef.current!] ?? []
-          const last = msgs[msgs.length - 1]
-          if (last && last.role === 'assistant' && last.isStreaming) {
-            return { ...prev, [streamSessionRef.current!]: [...msgs.slice(0, -1), { ...last, isStreaming: false }] }
-          }
-          return prev
-        })
-        setSessionStreaming((prev) => ({ ...prev, [streamSessionRef.current!]: false }))
+        const sessionId = streamSessionRef.current
+        // Drain all remaining text at once
+        if (pendingTextRef.current) {
+          const remaining = pendingTextRef.current
+          pendingTextRef.current = ''
+          drainingRef.current = false
+          setSessionMessages((prev) => {
+            const msgs = prev[sessionId] ?? []
+            const last = msgs[msgs.length - 1]
+            if (last && last.role === 'assistant' && last.isStreaming) {
+              const content = Array.isArray(last.content) ? last.content : [{ type: 'text' as const, text: last.content }]
+              const lastBlock = content[content.length - 1]
+              if (lastBlock && lastBlock.type === 'text') {
+                lastBlock.text += remaining
+              } else {
+                content.push({ type: 'text', text: remaining })
+              }
+              return { ...prev, [sessionId]: [...msgs.slice(0, -1), { ...last, content, isStreaming: false }] }
+            }
+            return prev
+          })
+        } else {
+          drainingRef.current = false
+          setSessionMessages((prev) => {
+            const msgs = prev[sessionId] ?? []
+            const last = msgs[msgs.length - 1]
+            if (last && last.role === 'assistant' && last.isStreaming) {
+              return { ...prev, [sessionId]: [...msgs.slice(0, -1), { ...last, isStreaming: false }] }
+            }
+            return prev
+          })
+        }
+        setSessionStreaming((prev) => ({ ...prev, [sessionId]: false }))
       },
       onError: (error: string) => {
         thinkingActiveRef.current = false
         if (!streamSessionRef.current) return
+        const sessionId = streamSessionRef.current
+        drainingRef.current = false
+        const remaining = pendingTextRef.current
+        pendingTextRef.current = ''
         setSessionMessages((prev) => {
-          const msgs = prev[streamSessionRef.current!] ?? []
+          const msgs = prev[sessionId] ?? []
+          const last = msgs[msgs.length - 1]
+          const content = remaining
+            ? [{ type: 'text' as const, text: remaining }, { type: 'text' as const, text: `Error: ${error}` }]
+            : [{ type: 'text' as const, text: `Error: ${error}` }]
+          if (last && last.role === 'assistant' && last.isStreaming) {
+            const lastContent = Array.isArray(last.content) ? last.content : [{ type: 'text' as const, text: String(last.content) }]
+            const lastBlock = lastContent[lastContent.length - 1]
+            if (lastBlock && lastBlock.type === 'text' && remaining) {
+              lastBlock.text += remaining
+            }
+            return {
+              ...prev,
+              [sessionId]: [...msgs.slice(0, -1), { ...last, content: [...lastContent, ...content], isStreaming: false }],
+            }
+          }
           return {
             ...prev,
-            [streamSessionRef.current!]: [
+            [sessionId]: [
               ...msgs,
               {
                 id: uuid(),
                 role: 'assistant',
-                content: [{ type: 'text', text: `Error: ${error}` }],
+                content,
                 isStreaming: false,
                 createdAt: Date.now(),
               },
             ],
           }
         })
-        setSessionStreaming((prev) => ({ ...prev, [streamSessionRef.current!]: false }))
+        setSessionStreaming((prev) => ({ ...prev, [sessionId]: false }))
       },
     }),
     []
