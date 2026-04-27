@@ -339,6 +339,7 @@ export default function App() {
   const handleSelect = useCallback(
     async (sessionId: string) => {
       setActiveId(sessionId)
+      streamSessionRef.current = sessionId
       setMobileSidebarOpen(false)
       if (!sessionMessages[sessionId] && !historyMessages[sessionId]) {
         await loadHistory(sessionId)

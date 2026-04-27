@@ -224,7 +224,7 @@ export async function sessionsRoutes(fastify: FastifyInstance): Promise<void> {
     const loadedSession = loadSession(id, { storageDir: getSessionStorageDir() })
 
     if (!loadedSession) {
-      return reply.send({ history: [], message: 'No history found' })
+      return reply.status(404).send({ error: 'Session history not found' })
     }
 
     return reply.send({ history: loadedSession.messages })
