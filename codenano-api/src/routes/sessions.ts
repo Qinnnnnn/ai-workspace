@@ -196,6 +196,19 @@ export async function sessionsRoutes(fastify: FastifyInstance): Promise<void> {
     return reply.send({ ok: true })
   })
 
+  // Abort session streaming
+  fastify.post('/api/v1/sessions/:id/abort', async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = request.params as { id: string }
+    const entry = registry.get(id)
+
+    if (!entry) {
+      return reply.status(404).send({ error: 'Session not found' })
+    }
+
+    entry.session.abort()
+    return reply.send({ ok: true })
+  })
+
   // Get session history using codenano's loadSession
   fastify.get('/api/v1/sessions/:id/history', async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = request.params as { id: string }
@@ -245,6 +258,11 @@ export async function sessionsRoutes(fastify: FastifyInstance): Promise<void> {
     reply.raw!.setHeader('Cache-Control', 'no-cache')
     reply.raw!.setHeader('Connection', 'keep-alive')
 
+    const onClose = () => {
+      entry.session.abort()
+    }
+    reply.raw!.on('close', onClose)
+
     try {
       for await (const event of entry.session.stream(prompt)) {
         sseWrite(reply.raw!, event)
@@ -254,6 +272,7 @@ export async function sessionsRoutes(fastify: FastifyInstance): Promise<void> {
       sseWrite(reply.raw!, { type: 'error', error })
     }
 
+    reply.raw!.off('close', onClose)
     reply.raw!.end()
   })
 }
