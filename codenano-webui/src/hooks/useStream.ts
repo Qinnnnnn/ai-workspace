@@ -1,6 +1,6 @@
 import { useCallback, useRef } from 'react'
 import { parseSSEStream } from '@/api/sse'
-import { sendMessage } from '@/api/sessions'
+import { sendMessage, abortSession } from '@/api/sessions'
 import type { StreamEvent } from '@/lib/types'
 
 interface UseStreamCallbacks {
@@ -11,12 +11,14 @@ interface UseStreamCallbacks {
   onQueryStart?: () => void
   onTurnStart?: () => void
   onTurnEnd?: () => void
+  onAborted?: (partialText: string) => void
   onDone: (finalText: string) => void
   onError: (error: string) => void
 }
 
 export function useStream(callbacks: UseStreamCallbacks) {
   const abortRef = useRef<AbortController | null>(null)
+  const sessionIdRef = useRef<string | null>(null)
 
   const send = useCallback(
     async (sessionId: string, prompt: string) => {
@@ -25,6 +27,7 @@ export function useStream(callbacks: UseStreamCallbacks) {
         abortRef.current.abort()
       }
       abortRef.current = new AbortController()
+      sessionIdRef.current = sessionId
 
       let finalText = ''
 
@@ -70,6 +73,11 @@ export function useStream(callbacks: UseStreamCallbacks) {
               callbacks.onQueryStart?.()
               break
 
+            case 'aborted':
+              callbacks.onAborted?.(event.partialText)
+              callbacks.onDone(finalText)
+              break
+
             case 'error':
               callbacks.onError(event.error?.message ?? 'Unknown error')
               break
@@ -90,6 +98,9 @@ export function useStream(callbacks: UseStreamCallbacks) {
 
   const abort = useCallback(() => {
     abortRef.current?.abort()
+    if (sessionIdRef.current) {
+      abortSession(sessionIdRef.current)
+    }
   }, [])
 
   return { send, abort }

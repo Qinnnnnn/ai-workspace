@@ -59,3 +59,14 @@ export async function sendMessage(
     credentials: 'same-origin',
   })
 }
+
+export async function abortSession(sessionId: string): Promise<void> {
+  try {
+    await fetch(`${API_BASE}/api/v1/sessions/${encodeURIComponent(sessionId)}/abort`, {
+      method: 'POST',
+      credentials: 'same-origin',
+    })
+  } catch {
+    // fire-and-forget, ignore errors
+  }
+}

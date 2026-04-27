@@ -9,6 +9,7 @@ export type StreamEvent =
   | { type: 'turn_end'; stopReason: string; turnNumber: number }
   | { type: 'query_start'; queryTracking: { chainId: string; depth: number } }
   | { type: 'result'; result: Result }
+  | { type: 'aborted'; partialText: string }
   | { type: 'error'; error: { message?: string } }
 
 export interface Result {

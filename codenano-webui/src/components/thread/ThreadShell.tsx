@@ -15,6 +15,7 @@ interface ThreadShellProps {
   isStreaming: boolean
   isLoadingHistory: boolean
   onSend: (content: string) => void
+  onStop?: () => void
 }
 
 export function ThreadShell({
@@ -26,6 +27,7 @@ export function ThreadShell({
   isStreaming,
   isLoadingHistory,
   onSend,
+  onStop,
 }: ThreadShellProps) {
   const [booting, setBooting] = useState(false)
 
@@ -70,9 +72,11 @@ export function ThreadShell({
                   <div className="[&_textarea]:min-h-[90px] [&_textarea]:py-4 transition-all">
                     <Composer
                       onSend={onSend}
-                      disabled={!session || isStreaming}
+                      disabled={!session}
                       placeholder={isStreaming ? i18n.waitingForResponse : i18n.typeYourMessage}
                       variant="thread"
+                      isStreaming={isStreaming}
+                      onStop={onStop}
                     />
                   </div>
                 </div>

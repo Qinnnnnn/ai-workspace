@@ -183,6 +183,32 @@ export default function App() {
       onTurnEnd: () => {
         thinkingActiveRef.current = false  // turn 结束，thinking 也结束
       },
+      onAborted: (partialText: string) => {
+        thinkingActiveRef.current = false
+        if (!streamSessionRef.current) return
+        const sessionId = streamSessionRef.current
+        drainingRef.current = false
+        // Drain remaining text
+        if (partialText && pendingTextRef.current !== partialText) {
+          pendingTextRef.current += partialText
+        }
+        const remaining = pendingTextRef.current
+        pendingTextRef.current = ''
+        setSessionMessages((prev) => {
+          const msgs = prev[sessionId] ?? []
+          const last = msgs[msgs.length - 1]
+          if (last && last.role === 'assistant' && last.isStreaming) {
+            const content = Array.isArray(last.content) ? last.content : [{ type: 'text' as const, text: last.content }]
+            const lastBlock = content[content.length - 1]
+            if (lastBlock && lastBlock.type === 'text' && remaining) {
+              lastBlock.text += remaining
+            }
+            return { ...prev, [sessionId]: [...msgs.slice(0, -1), { ...last, content, isStreaming: false }] }
+          }
+          return prev
+        })
+        setSessionStreaming((prev) => ({ ...prev, [sessionId]: false }))
+      },
       onDone: () => {
         thinkingActiveRef.current = false
         if (!streamSessionRef.current) return
@@ -264,7 +290,7 @@ export default function App() {
     []
   )
 
-  const { send: doSend } = useStream(streamCallbacks)
+  const { send: doSend, abort: doAbort } = useStream(streamCallbacks)
 
   useEffect(() => {
     try {
@@ -442,6 +468,7 @@ export default function App() {
             isStreaming={isCurrentlyStreaming}
             isLoadingHistory={isLoadingHistory}
             onSend={handleSend}
+            onStop={doAbort}
           />
         </div>
 

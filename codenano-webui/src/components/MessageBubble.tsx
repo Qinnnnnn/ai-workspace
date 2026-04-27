@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { ChevronRight, Wrench, AlertCircle, Brain, Loader2 } from 'lucide-react'
+import { ChevronRight, Wrench, AlertCircle, Brain, Loader2, XCircle } from 'lucide-react'
 import { MarkdownText } from '@/components/MarkdownText'
 import { cn } from '@/lib/utils'
 import type { UIMessage, ContentBlock } from '@/lib/types'
@@ -62,10 +62,11 @@ function ThinkingBlock({ block }: { block: Extract<ContentBlock, { type: 'thinki
 // ==========================================
 type ToolUseBlock = Extract<ContentBlock, { type: 'tool_use' }>
 
-function ToolActionBlock({ block }: { block: ToolUseBlock }) {
+function ToolActionBlock({ block, isStreaming }: { block: ToolUseBlock; isStreaming?: boolean }) {
   const [open, setOpen] = useState(false)
 
   const isPending = !block.result
+  const isCancelled = isPending && !isStreaming
   const isError = block.result?.is_error
   const isEmptySuccess = !isError && (!block.result?.content || block.result.content.trim() === '')
 
@@ -95,7 +96,11 @@ function ToolActionBlock({ block }: { block: ToolUseBlock }) {
         )}
       >
         {isPending ? (
-          <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-400" />
+          isCancelled ? (
+            <XCircle className="h-3.5 w-3.5 text-muted-foreground/50" />
+          ) : (
+            <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-400" />
+          )
         ) : isError ? (
           <AlertCircle className="h-3.5 w-3.5 text-red-400" />
         ) : (
@@ -110,7 +115,7 @@ function ToolActionBlock({ block }: { block: ToolUseBlock }) {
         </span>
 
         <span className="text-[9px] text-muted-foreground/50 font-medium ml-1">
-          {isPending ? i18n.running : isError ? i18n.failed : 'DONE'}
+          {isCancelled ? i18n.cancelled : isPending ? i18n.running : isError ? i18n.failed : 'DONE'}
         </span>
 
         <ChevronRight className={cn('ml-auto h-3 w-3 text-muted-foreground/30 transition-transform duration-300', open ? 'rotate-90' : '')} />
@@ -194,7 +199,7 @@ export function MessageBubble({ message }: { message: UIMessage }) {
             return <ThinkingBlock key={`think-${i}`} block={block} />
           }
           if (block.type === 'tool_use') {
-            return <ToolActionBlock key={block.id || `tool-${i}`} block={block} />
+            return <ToolActionBlock key={block.id || `tool-${i}`} block={block} isStreaming={message.isStreaming} />
           }
           if (block.type === 'text' && block.text?.trim()) {
             return (

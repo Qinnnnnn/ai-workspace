@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ArrowUp } from 'lucide-react'
+import { ArrowUp, Square } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { i18n } from '@/lib/i18n'
@@ -10,6 +10,8 @@ interface ComposerProps {
   placeholder?: string
   compact?: boolean
   variant?: 'thread' | 'hero'
+  isStreaming?: boolean
+  onStop?: () => void
 }
 
 export function Composer({
@@ -18,6 +20,8 @@ export function Composer({
   placeholder = 'Type your message…',
   compact = false,
   variant = 'thread',
+  isStreaming = false,
+  onStop,
 }: ComposerProps) {
   const [value, setValue] = useState('')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -87,7 +91,6 @@ export function Composer({
           onKeyDown={onKeyDown}
           rows={1}
           placeholder={placeholder}
-          disabled={disabled}
           aria-label="Message input"
           className={cn(
             'w-full resize-none bg-transparent',
@@ -108,21 +111,36 @@ export function Composer({
             </span>
           </div>
           <span className="sm:hidden" aria-hidden />
-          <Button
-            type="submit"
-            size="icon"
-            disabled={disabled || !value.trim()}
-            aria-label="Send message"
-            className={cn(
-              'rounded-full border border-black/10 dark:border-white/15 shadow-sm transition-all duration-200 ease-out',
-              isHero ? 'h-10 w-10' : 'h-9 w-9',
-              value.trim() && !disabled
-                ? 'bg-slate-800 dark:bg-slate-100 text-white dark:text-slate-900 hover:bg-slate-700 dark:hover:bg-slate-200 hover:scale-[1.04] active:scale-95 shadow-md'
-                : 'bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed',
-            )}
-          >
-            <ArrowUp className={cn(isHero ? 'h-4 w-4' : 'h-3.5 w-3.5')} />
-          </Button>
+          {isStreaming ? (
+            <Button
+              type="button"
+              size="icon"
+              onClick={onStop}
+              aria-label={i18n.stop}
+              className={cn(
+                'rounded-full border border-black/10 dark:border-white/15 shadow-sm transition-all duration-200 ease-out bg-red-500 hover:bg-red-600 text-white',
+                isHero ? 'h-10 w-10' : 'h-9 w-9',
+              )}
+            >
+              <Square className={cn(isHero ? 'h-4 w-4' : 'h-3.5 w-3.5')} fill="currentColor" />
+            </Button>
+          ) : (
+            <Button
+              type="submit"
+              size="icon"
+              disabled={disabled || !value.trim()}
+              aria-label="Send message"
+              className={cn(
+                'rounded-full border border-black/10 dark:border-white/15 shadow-sm transition-all duration-200 ease-out',
+                isHero ? 'h-10 w-10' : 'h-9 w-9',
+                value.trim() && !disabled
+                  ? 'bg-slate-800 dark:bg-slate-100 text-white dark:text-slate-900 hover:bg-slate-700 dark:hover:bg-slate-200 hover:scale-[1.04] active:scale-95 shadow-md'
+                  : 'bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed',
+              )}
+            >
+              <ArrowUp className={cn(isHero ? 'h-4 w-4' : 'h-3.5 w-3.5')} />
+            </Button>
+          )}
         </div>
       </div>
     </form>
