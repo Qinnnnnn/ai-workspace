@@ -1,5 +1,5 @@
-import { createAgent, coreTools, extendedTools, allTools, sandboxCoreTools } from 'codenano'
-import type { Agent, ToolDef, AgentConfig, PermissionDecision } from 'codenano'
+import { createAgent, coreTools, extendedTools, allTools, sandboxCoreTools } from './codenano/index.js'
+import type { Agent, ToolDef, AgentConfig, PermissionDecision } from './codenano/index.js'
 
 const TOOL_PRESETS = {
   core: coreTools,

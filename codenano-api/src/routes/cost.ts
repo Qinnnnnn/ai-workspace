@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
-import { calculateCostUSD, getModelPricing } from 'codenano'
-import type { Usage } from 'codenano'
+import { calculateCostUSD, getModelPricing } from '../codenano/index.js'
+import type { Usage } from '../codenano/index.js'
 
 export async function costRoutes(fastify: FastifyInstance): Promise<void> {
   // Get model pricing

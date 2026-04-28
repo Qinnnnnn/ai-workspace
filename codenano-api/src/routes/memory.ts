@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
-import { saveMemory, loadMemory, scanMemories, getMemoryDir } from 'codenano'
-import type { Memory } from 'codenano'
+import { saveMemory, loadMemory, scanMemories, getMemoryDir } from '../codenano/index.js'
+import type { Memory } from '../codenano/index.js'
 import { join } from 'path'
 import { unlinkSync, existsSync } from 'fs'
 

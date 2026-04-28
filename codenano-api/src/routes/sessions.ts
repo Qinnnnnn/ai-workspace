@@ -1,5 +1,5 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
-import { loadSession, listSessions as codenanoListSessions, getSessionStorageDir } from 'codenano'
+import { loadSession, listSessions as codenanoListSessions, getSessionStorageDir } from '../codenano/index.js'
 import { createAgentInstance } from '../agent.js'
 import { getSessionRegistry } from '../services/session-registry.js'
 import { createContainer, startContainer } from '../services/docker-service.js'
@@ -8,7 +8,7 @@ import type {
   SendMessageBody,
   ToolPermission,
 } from '../types/index.js'
-import type { RuntimeContext } from 'codenano'
+import type { RuntimeContext } from '../codenano/index.js'
 import { homedir } from 'os'
 import { mkdirSync, rmSync } from 'fs'
 import { join } from 'path'

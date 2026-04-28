@@ -1,5 +1,5 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
-import { getGitState, findGitRoot } from 'codenano'
+import { getGitState, findGitRoot } from '../codenano/index.js'
 import { resolve } from 'path'
 
 export async function gitRoutes(fastify: FastifyInstance): Promise<void> {

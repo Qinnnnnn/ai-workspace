@@ -73,7 +73,7 @@ import { getSessionRegistry } from '../src/services/session-registry.js'
 import * as dockerService from '../src/services/docker-service.js'
 
 // Import actual implementations for path traversal tests (not from mocked codenano)
-import { resolveSecurePhysicalPath, PathTraversalViolation } from '../../codenano/src/path-utils.js'
+import { resolveSecurePhysicalPath, PathTraversalViolation } from '../src/codenano/path-utils.js'
 
 describe('Sandbox Integration Tests', () => {
   let app: FastifyInstance

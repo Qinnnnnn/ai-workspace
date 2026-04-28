@@ -1,4 +1,4 @@
-import type { Agent, Session, StreamEvent, RuntimeContext } from 'codenano'
+import type { Agent, Session, StreamEvent, RuntimeContext } from '../codenano/index.js'
 
 export type { Agent, Session, StreamEvent, RuntimeContext }
 

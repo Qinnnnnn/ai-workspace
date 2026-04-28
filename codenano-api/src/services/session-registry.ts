@@ -1,5 +1,5 @@
-import type { Agent, Session } from 'codenano'
-import { getSessionStorageDir } from 'codenano'
+import type { Agent, Session } from '../codenano/index.js'
+import { getSessionStorageDir } from '../codenano/index.js'
 import type { ToolPermission } from '../types/index.js'
 import fs from 'fs'
 import path from 'path'

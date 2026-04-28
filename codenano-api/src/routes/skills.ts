@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
-import { discoverSkillFiles, loadSkills, expandSkillContent, parseSkillFile } from 'codenano'
-import type { SkillDef } from 'codenano'
+import { discoverSkillFiles, loadSkills, expandSkillContent, parseSkillFile } from '../codenano/index.js'
+import type { SkillDef } from '../codenano/index.js'
 
 const DEFAULT_SKILLS_DIRS = ['.claude/skills']
 
