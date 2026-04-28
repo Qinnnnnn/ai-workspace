@@ -1,29 +1,17 @@
 import Docker from 'dockerode'
-import fs from 'fs'
 
 const DOCKER_IMAGE = process.env.SANDBOX_DOCKER_IMAGE ?? 'codenano-sandbox:latest'
 const CONTAINER_CPU_LIMIT = parseFloat(process.env.SANDBOX_CPU_LIMIT ?? '0.5')
-const SANDBOX_MODE = process.env.SANDBOX_MODE ?? 'local'
+
+const DEFAULT_TCP_HOST = process.env.DOCKER_TCP_HOST ?? '127.0.0.1'
+const DEFAULT_TCP_PORT = parseInt(process.env.DOCKER_TCP_PORT ?? '2375', 10)
 
 function getDocker(): Docker {
-  if (SANDBOX_MODE === 'remote') {
-    const host = process.env.DOCKER_HOST_HOST
-    const user = process.env.DOCKER_HOST_USER
-    const keyPath = process.env.DOCKER_HOST_KEY_PATH
-    if (!host || !user || !keyPath) {
-      throw new Error('SANDBOX_MODE=remote requires DOCKER_HOST_HOST, DOCKER_HOST_USER, and DOCKER_HOST_KEY_PATH')
-    }
-    return new Docker({
-      ssh: {
-        host,
-        port: 22,
-        username: user,
-        privateKey: fs.readFileSync(keyPath, 'utf-8'),
-      },
-    } as any)
-  }
-  // local mode: use default socket
-  return new Docker()
+  return new Docker({
+    host: DEFAULT_TCP_HOST,
+    port: DEFAULT_TCP_PORT,
+    protocol: 'http',
+  })
 }
 
 export async function checkDockerHealth(): Promise<boolean> {
@@ -31,7 +19,10 @@ export async function checkDockerHealth(): Promise<boolean> {
     const docker = getDocker()
     await docker.ping()
     return true
-  } catch {
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    console.error('Docker health check failed:', message)
+    console.error('Ensure Docker daemon is listening on TCP:', `tcp://${DEFAULT_TCP_HOST}:${DEFAULT_TCP_PORT}`)
     return false
   }
 }
@@ -58,7 +49,6 @@ export async function createContainer(
   const docker = getDocker()
   const containerName = `codenano-sandbox-${sessionId}`
 
-  // Ensure image exists, pull if needed
   try {
     await docker.getImage(DOCKER_IMAGE).inspect()
   } catch {
@@ -106,27 +96,53 @@ export async function stopContainer(containerId: string): Promise<void> {
   }
 }
 
-export async function execInContainer(
+const DEFAULT_TIMEOUT_MS = 30_000
+
+export interface ExecResult {
+  status: number
+  stdout: string
+  stderr: string
+}
+
+function parseExecStream(chunk: Buffer, stdout: string[], stderr: string[]): void {
+  // Docker exec protocol: 8-byte header followed by payload
+  // Header: [stream_type(1), 0, 0, 0, size(4 bytes big-endian)]
+  // Stream type: 1=stdin, 2=stdout, 4=stderr
+  let offset = 0
+  while (offset < chunk.length) {
+    if (offset + 8 > chunk.length) break
+    const streamType = chunk[offset]
+    const size = chunk.readUInt32BE(offset + 4)
+    offset += 8
+    if (offset + size > chunk.length) break
+    const data = chunk.slice(offset, offset + size).toString()
+    if (streamType === 2) {
+      stdout.push(data)
+    } else if (streamType === 4) {
+      stderr.push(data)
+    }
+    offset += size
+  }
+}
+
+export async function execCommand(
   containerId: string,
   command: string,
-  cwd: string = '/workspace',
-  timeout: number = 120000,
-): Promise<{ stdout: string; stderr: string; exitCode: number }> {
+  timeout: number = DEFAULT_TIMEOUT_MS,
+): Promise<ExecResult> {
   const docker = getDocker()
   const container = docker.getContainer(containerId)
 
   const exec = await container.exec({
-    Cmd: ['bash', '-c', `cd ${cwd} && ${command}`],
+    Cmd: ['bash', '-c', command],
     AttachStdout: true,
     AttachStderr: true,
-    WorkingDir: cwd,
   })
 
   const stream = await exec.start({ hijack: true, stdin: false })
 
-  let stdout = ''
-  let stderr = ''
-  let exitCode = 0
+  const stdoutChunks: string[] = []
+  const stderrChunks: string[] = []
 
   const { setTimeout: setTimeoutFn } = await import('timers/promises')
 
@@ -134,18 +150,97 @@ export async function execInContainer(
     await Promise.race([
       new Promise<void>((resolve) => {
         stream.on('data', (chunk: Buffer) => {
-          stdout += chunk.toString()
+          parseExecStream(chunk, stdoutChunks, stderrChunks)
         })
         stream.on('end', () => resolve())
       }),
       setTimeoutFn(timeout),
     ])
   } catch {
-    exitCode = 124 // timeout
+    // timeout - stream will be closed
   }
 
   const info = await exec.inspect()
-  exitCode = info.ExitCode ?? exitCode
+  return {
+    status: info.ExitCode ?? 0,
+    stdout: stdoutChunks.join(''),
+    stderr: stderrChunks.join(''),
+  }
+}
 
-  return { stdout, stderr, exitCode }
+export async function execCommandWithStdin(
+  containerId: string,
+  command: string,
+  input: string,
+  timeout: number = DEFAULT_TIMEOUT_MS,
+): Promise<ExecResult> {
+  const docker = getDocker()
+  const container = docker.getContainer(containerId)
+
+  const exec = await container.exec({
+    Cmd: ['bash', '-c', command],
+    AttachStdin: true,
+    AttachStdout: true,
+    AttachStderr: true,
+  })
+
+  const stream = await exec.start({ hijack: true, stdin: true })
+
+  const stdoutChunks: string[] = []
+  const stderrChunks: string[] = []
+
+  const { setTimeout: setTimeoutFn } = await import('timers/promises')
+
+  await new Promise<void>((resolve, reject) => {
+    const timeoutId = setTimeout(() => {
+      reject(new Error('Stdin write timeout'))
+    }, 10000)
+
+    stream.write(input, (err?: Error | null) => {
+      clearTimeout(timeoutId)
+      if (err) {
+        reject(err)
+        return
+      }
+      stream.end((err?: Error | null) => {
+        if (err) reject(err)
+        else resolve()
+      })
+    })
+  })
+
+  try {
+    await Promise.race([
+      new Promise<void>((resolve) => {
+        stream.on('data', (chunk: Buffer) => {
+          parseExecStream(chunk, stdoutChunks, stderrChunks)
+        })
+        stream.on('end', () => resolve())
+      }),
+      setTimeoutFn(timeout),
+    ])
+  } catch {
+    // timeout - stream will be closed
+  }
+
+  const info = await exec.inspect()
+  return {
+    status: info.ExitCode ?? 0,
+    stdout: stdoutChunks.join(''),
+    stderr: stderrChunks.join(''),
+  }
+}
+
+export async function execDetached(
+  containerId: string,
+  command: string,
+): Promise<void> {
+  const docker = getDocker()
+  const container = docker.getContainer(containerId)
+
+  const exec = await container.exec({
+    Cmd: ['bash', '-c', command],
+  })
+
+  await exec.start({ Detach: true })
 }

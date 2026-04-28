@@ -1,12 +1,12 @@
 /**
  * SandboxGrepTool — Search file contents with regex inside Docker container.
- * Uses `executeCoreCommand` to run `ripgrep` inside the container's /workspace.
+ * Uses execCommand to run ripgrep inside the container's /workspace.
  * Implementation mirrors core GrepTool including fallback to grep.
  */
 
 import { z } from 'zod'
 import { defineTool } from '../../tool-builder.js'
-import { executeCoreCommand } from '../../utils/sandbox-exec.js'
+import { execCommand } from '../../../services/docker-service.js'
 import type { ToolContext } from '../../types.js'
 
 type GrepInput = z.infer<typeof inputSchema>
@@ -59,16 +59,15 @@ export const SandboxGrepTool = defineTool({
 
     const { containerId, cwd } = context.runtime
     const searchPath = input.path ? input.path : cwd
-    const result = executeGrepInSandbox(input, searchPath, containerId)
+    const result = await executeGrepInSandbox(input, searchPath, containerId)
     return result
   },
 })
 
-function executeGrepInSandbox(input: GrepInput, searchPath: string, containerId: string) {
+async function executeGrepInSandbox(input: GrepInput, searchPath: string, containerId: string) {
   const mode = input.output_mode ?? 'files_with_matches'
   const limit = input.head_limit ?? 250
 
-  // Build ripgrep command
   const rgArgs: string[] = ['rg']
 
   if (mode === 'files_with_matches') rgArgs.push('-l')
@@ -89,12 +88,11 @@ function executeGrepInSandbox(input: GrepInput, searchPath: string, containerId:
   rgArgs.push('--', input.pattern, searchPath)
 
   const rgCmd = rgArgs.join(' ')
-  const result = executeCoreCommand(containerId, rgCmd)
+  const result = await execCommand(containerId, rgCmd)
 
-  let output = result.stdout ?? ''
-  const exitCode = result.status ?? 0
+  let output = result.stdout
+  const exitCode = result.status
 
-  // Apply offset and limit
   let lines = output.split('\n')
   if (input.offset) lines = lines.slice(input.offset)
   if (limit > 0) lines = lines.slice(0, limit)
@@ -104,7 +102,6 @@ function executeGrepInSandbox(input: GrepInput, searchPath: string, containerId:
     return output || `No matches found for pattern "${input.pattern}"`
   }
 
-  // rg exits with code 2 on errors — fallback to grep
   if (exitCode === 2) {
     const grepArgs = ['grep', '-r']
     if (input['-i']) grepArgs.push('-i')
@@ -114,7 +111,7 @@ function executeGrepInSandbox(input: GrepInput, searchPath: string, containerId:
     grepArgs.push('--', input.pattern, searchPath)
 
     const grepCmd = grepArgs.join(' ')
-    const fallbackResult = executeCoreCommand(containerId, grepCmd)
+    const fallbackResult = await execCommand(containerId, grepCmd)
     return fallbackResult.stdout?.trimEnd() || `No matches found for pattern "${input.pattern}"`
   }
 

@@ -1,0 +1,4 @@
+# No spec changes required
+
+This refactor is purely implementation-level - no requirements or capabilities are changing.
+All sandbox runtime behavior requirements remain identical to the existing docker-sandbox-runtime spec.

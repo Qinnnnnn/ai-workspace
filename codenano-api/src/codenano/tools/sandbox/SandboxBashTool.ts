@@ -1,12 +1,11 @@
 /**
  * SandboxBashTool — Execute shell commands inside Docker container.
- * All commands are proxied through `docker exec` via executeCoreCommand.
+ * All commands are proxied through dockerode exec.
  */
 
 import { z } from 'zod'
-import { exec } from 'child_process'
 import { defineTool } from '../../tool-builder.js'
-import { executeCoreCommand } from '../../utils/sandbox-exec.js'
+import { execCommand, execDetached } from '../../../services/docker-service.js'
 import type { ToolContext } from '../../types.js'
 
 const MAX_TIMEOUT_MS = 600_000 // 10 minutes
@@ -65,26 +64,14 @@ export const SandboxBashTool = defineTool({
     const { containerId } = context.runtime
 
     if (input.run_in_background) {
-      const env = { ...process.env }
-      if (process.env.SANDBOX_MODE === 'remote') {
-        env.DOCKER_HOST = `ssh://${process.env.DOCKER_HOST_USER}@${process.env.DOCKER_HOST_HOST}`
-      }
-      const escapedCmd = input.command.replace(/'/g, "'\\''")
-      const child = exec(
-        `docker exec -d ${containerId} bash -c '${escapedCmd}'`,
-        { env },
-      )
-      child.on('error', (err) => console.error(`Background process error: ${err.message}`))
-      child.on('exit', (code) => {
-        if (code !== 0) console.error(`Background process exited with code ${code}`)
-      })
+      await execDetached(containerId, input.command)
       return `Background process started in container ${containerId}`
     }
 
-    const result = executeCoreCommand(containerId, input.command, timeout)
-    const stdout = result.stdout ?? ''
-    const stderr = result.stderr ?? ''
-    const exitCode = result.status ?? 0
+    const result = await execCommand(containerId, input.command, timeout)
+    const stdout = result.stdout
+    const stderr = result.stderr
+    const exitCode = result.status
 
     if (exitCode !== 0) {
       return {

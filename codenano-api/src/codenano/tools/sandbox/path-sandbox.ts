@@ -6,20 +6,18 @@
 
 import type { ToolDef, ToolContext, ToolOutput } from '../../types.js'
 import { PathTraversalViolation } from '../../path-utils.js'
-import { executeCoreCommand } from '../../utils/sandbox-exec.js'
+import { execCommand } from '../../../services/docker-service.js'
 
-function validatePathInContainer(containerId: string, virtualPath: string): string {
-  // realpath -m: resolves path without requiring file existence
-  // bash [[ ]]: rejects any path not under /workspace
+async function validatePathInContainer(containerId: string, virtualPath: string): Promise<string> {
   const escapedPath = virtualPath.replace(/'/g, "'\\''")
   const cmd = `rp=$(realpath -m '${escapedPath}') && [[ "$rp" == /workspace/* || "$rp" == "/workspace" ]] && echo "$rp" || exit 1`
-  const result = executeCoreCommand(containerId, cmd)
+  const result = await execCommand(containerId, cmd)
 
   if (result.status !== 0) {
     throw new PathTraversalViolation()
   }
 
-  const resolved = (result.stdout ?? '').trim()
+  const resolved = result.stdout.trim()
   if (!resolved.startsWith('/workspace/')) {
     throw new PathTraversalViolation()
   }
@@ -37,7 +35,7 @@ export function withPathSandbox<T extends { file_path: string }>(
         return { content: 'Sandbox mode required. Expected runtime.type === "sandbox"', isError: true }
       }
       try {
-        const safePath = validatePathInContainer(context.runtime.containerId, input.file_path)
+        const safePath = await validatePathInContainer(context.runtime.containerId, input.file_path)
         return tool.execute({ ...input, file_path: safePath }, context)
       } catch (e) {
         if (e instanceof PathTraversalViolation) {

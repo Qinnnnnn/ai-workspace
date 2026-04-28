@@ -5,7 +5,7 @@
 
 import { z } from 'zod'
 import { defineTool } from '../../tool-builder.js'
-import { executeCoreCommand } from '../../utils/sandbox-exec.js'
+import { execCommand } from '../../../services/docker-service.js'
 import { withPathSandbox } from './path-sandbox.js'
 import type { ToolContext } from '../../types.js'
 
@@ -27,7 +27,7 @@ const sandboxFileReadTool = defineTool({
 
     const { containerId } = context.runtime
     const safePath = input.file_path.replace(/'/g, "'\\''")
-    const result = executeCoreCommand(containerId, `cat '${safePath}'`)
+    const result = await execCommand(containerId, `cat '${safePath}'`)
 
     if (result.status === 0) {
       return result.stdout

@@ -5,7 +5,7 @@
 
 import { z } from 'zod'
 import { defineTool } from '../../tool-builder.js'
-import { executeStdinCommand } from '../../utils/sandbox-exec.js'
+import { execCommandWithStdin } from '../../../services/docker-service.js'
 import { withPathSandbox } from './path-sandbox.js'
 import type { ToolContext } from '../../types.js'
 
@@ -30,7 +30,7 @@ const sandboxFileWriteTool = defineTool({
     const safePath = input.file_path.replace(/'/g, "'\\''")
     const cmd = `mkdir -p $(dirname '${safePath}') && cat > '${safePath}'`
 
-    const result = executeStdinCommand(containerId, cmd, input.content)
+    const result = await execCommandWithStdin(containerId, cmd, input.content)
 
     if (result.status === 0) {
       const lines = input.content.split('\n').length

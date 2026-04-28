@@ -329,7 +329,7 @@ describe('Sandbox Integration Tests', () => {
   })
 
   describe('Container resource limits', () => {
-    it('should create container with resource limits', async () => {
+    it('should create container with sessionId', async () => {
       // Clear previous calls
       vi.clearAllMocks()
 
@@ -339,12 +339,11 @@ describe('Sandbox Integration Tests', () => {
         payload: { config: {} },
       })
 
-      // Verify createContainer was called
+      // Verify createContainer was called with sessionId
       expect(dockerService.createContainer).toHaveBeenCalled()
-      const [sessionId, physicalPath] = dockerService.createContainer.mock.calls[0]
+      const [sessionId] = dockerService.createContainer.mock.calls[0]
 
       expect(sessionId).toBeDefined()
-      expect(physicalPath).toContain('.agent-core/workspaces/')
     })
   })
 

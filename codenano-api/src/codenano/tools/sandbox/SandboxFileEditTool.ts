@@ -5,7 +5,7 @@
 
 import { z } from 'zod'
 import { defineTool } from '../../tool-builder.js'
-import { executeCoreCommand, executeStdinCommand } from '../../utils/sandbox-exec.js'
+import { execCommand, execCommandWithStdin } from '../../../services/docker-service.js'
 import { withPathSandbox } from './path-sandbox.js'
 import type { ToolContext } from '../../types.js'
 
@@ -31,20 +31,17 @@ const sandboxFileEditTool = defineTool({
     const { containerId } = context.runtime
     const safePath = input.file_path.replace(/'/g, "'\\''")
 
-    // 1. Read file
-    const readResult = executeCoreCommand(containerId, `cat '${safePath}'`)
+    const readResult = await execCommand(containerId, `cat '${safePath}'`)
     if (readResult.status !== 0) {
       return { content: `Error: File not found: ${input.file_path}`, isError: true }
     }
 
     const content = readResult.stdout
 
-    // 2. Validate old_string exists
     if (!content.includes(input.old_string)) {
       return { content: `Error: old_string not found in ${input.file_path}`, isError: true }
     }
 
-    // 3. Validate uniqueness if not replace_all
     if (!input.replace_all) {
       const firstIdx = content.indexOf(input.old_string)
       const secondIdx = content.indexOf(input.old_string, firstIdx + input.old_string.length)
@@ -56,13 +53,11 @@ const sandboxFileEditTool = defineTool({
       }
     }
 
-    // 4. Node.js memory replace
     const updated = input.replace_all
       ? content.split(input.old_string).join(input.new_string)
       : content.replace(input.old_string, input.new_string)
 
-    // 5. Write back via stdin
-    const writeResult = executeStdinCommand(containerId, `cat > '${safePath}'`, updated)
+    const writeResult = await execCommandWithStdin(containerId, `cat > '${safePath}'`, updated)
     if (writeResult.status !== 0) {
       return { content: writeResult.stderr || `Edit failed`, isError: true }
     }

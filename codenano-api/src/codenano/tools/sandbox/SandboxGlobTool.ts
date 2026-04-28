@@ -1,11 +1,11 @@
 /**
  * SandboxGlobTool — Fast file pattern matching inside Docker container.
- * Uses `docker exec` via executeCoreCommand to run `find` inside the container.
+ * Uses dockerode exec via execCommand to run find inside the container.
  */
 
 import { z } from 'zod'
 import { defineTool } from '../../tool-builder.js'
-import { executeCoreCommand } from '../../utils/sandbox-exec.js'
+import { execCommand } from '../../../services/docker-service.js'
 import type { ToolContext } from '../../types.js'
 
 const inputSchema = z.object({
@@ -38,13 +38,13 @@ export const SandboxGlobTool = defineTool({
     const escapedPattern = input.pattern.replace(/'/g, "'\\''")
     const cmd = `find '${searchDir}' -name '${escapedPattern}' -type f 2>/dev/null | head -1000`
 
-    const result = executeCoreCommand(containerId, cmd)
+    const result = await execCommand(containerId, cmd)
 
     if (result.status !== 0) {
       return { content: `Error: Failed to search for pattern "${input.pattern}" in ${searchDir}`, isError: true }
     }
 
-    const stdout = result.stdout ?? ''
+    const stdout = result.stdout
     const files = stdout.trim().split('\n').filter(Boolean)
 
     if (files.length === 0) {

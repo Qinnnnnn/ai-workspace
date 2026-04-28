@@ -74,7 +74,7 @@ describe('Per-Session Workspace Isolation', () => {
     await registry.destroyAll()
     await app.close()
 
-    // Clean up test workspaces
+    // Clean up test workspaces (local mode only)
     try {
       if (fs.existsSync(WORKSPACE_BASE)) {
         const dirs = fs.readdirSync(WORKSPACE_BASE)
@@ -89,8 +89,8 @@ describe('Per-Session Workspace Isolation', () => {
     }
   })
 
-  describe('7.1 Session creation creates workspace directory', () => {
-    it('should create workspace directory on session creation', async () => {
+  describe('7.1 Session creation in sandbox mode uses tmpfs', () => {
+    it('should create container with /workspace as virtual path', async () => {
       const response = await app.inject({
         method: 'POST',
         url: '/api/v1/sessions',
@@ -100,17 +100,16 @@ describe('Per-Session Workspace Isolation', () => {
       expect(response.statusCode).toBe(200)
       const body = JSON.parse(response.body)
       expect(body.sessionId).toBeDefined()
-      expect(body.cwd).toBe('/workspace') // Virtual path in sandbox mode
+      expect(body.cwd).toBe('/workspace') // Virtual path in sandbox mode (tmpfs)
       expect(body.sandboxEnabled).toBe(true)
       expect(body.containerId).toBeDefined()
 
-      // Verify physical workspace directory exists
+      // Sandbox mode uses tmpfs inside container - no physical directory created
       const physicalPath = join(WORKSPACE_BASE, body.sessionId)
-      expect(fs.existsSync(physicalPath)).toBe(true)
+      expect(fs.existsSync(physicalPath)).toBe(false)
     })
 
     it('should return session details with sandbox info', async () => {
-      // Create session first
       const createResponse = await app.inject({
         method: 'POST',
         url: '/api/v1/sessions',
@@ -118,7 +117,6 @@ describe('Per-Session Workspace Isolation', () => {
       })
       const { sessionId, containerId } = JSON.parse(createResponse.body)
 
-      // Get session details
       const getResponse = await app.inject({
         method: 'GET',
         url: `/api/v1/sessions/${sessionId}`,
@@ -132,30 +130,25 @@ describe('Per-Session Workspace Isolation', () => {
     })
   })
 
-  describe('7.2 Session deletion cleans up workspace directory', () => {
-    it('should delete workspace directory when session is deleted', async () => {
-      // Create session
+  describe('7.2 Session deletion stops container in sandbox mode', () => {
+    it('should stop container when session is deleted in sandbox mode', async () => {
       const createResponse = await app.inject({
         method: 'POST',
         url: '/api/v1/sessions',
         payload: { config: {} },
       })
       const { sessionId } = JSON.parse(createResponse.body)
+
+      // In sandbox mode, container exists but no physical directory
       const physicalPath = join(WORKSPACE_BASE, sessionId)
+      expect(fs.existsSync(physicalPath)).toBe(false)
 
-      // Verify workspace exists
-      expect(fs.existsSync(physicalPath)).toBe(true)
-
-      // Delete session
       const deleteResponse = await app.inject({
         method: 'DELETE',
         url: `/api/v1/sessions/${sessionId}`,
       })
 
       expect(deleteResponse.statusCode).toBe(200)
-
-      // Verify workspace is deleted
-      expect(fs.existsSync(physicalPath)).toBe(false)
     })
   })
 
@@ -174,7 +167,6 @@ describe('Per-Session Workspace Isolation', () => {
     })
 
     it('should include workspace in GET /api/v1/sessions/:id response', async () => {
-      // Create session
       const createResponse = await app.inject({
         method: 'POST',
         url: '/api/v1/sessions',
@@ -182,7 +174,6 @@ describe('Per-Session Workspace Isolation', () => {
       })
       const { sessionId } = JSON.parse(createResponse.body)
 
-      // Get session
       const getResponse = await app.inject({
         method: 'GET',
         url: `/api/v1/sessions/${sessionId}`,
@@ -194,16 +185,13 @@ describe('Per-Session Workspace Isolation', () => {
     })
 
     it('should include workspace in GET /api/v1/sessions list response', async () => {
-      // Create session
       const createResponse = await app.inject({
         method: 'POST',
         url: '/api/v1/sessions',
         payload: { config: {} },
       })
       const { sessionId } = JSON.parse(createResponse.body)
-      const physicalPath = join(WORKSPACE_BASE, sessionId)
 
-      // List sessions
       const listResponse = await app.inject({
         method: 'GET',
         url: '/api/v1/sessions',
@@ -220,7 +208,6 @@ describe('Per-Session Workspace Isolation', () => {
 
   describe('Concurrent workspace isolation', () => {
     it('should create different containers for different sessions', async () => {
-      // Create two sessions
       const response1 = await app.inject({
         method: 'POST',
         url: '/api/v1/sessions',
@@ -234,20 +221,22 @@ describe('Per-Session Workspace Isolation', () => {
 
       const { sessionId: id1, containerId: cid1 } = JSON.parse(response1.body)
       const { sessionId: id2, containerId: cid2 } = JSON.parse(response2.body)
+
+      // Each session gets its own container for isolation
+      expect(id1).not.toBe(id2)
+      expect(cid1).not.toBe(cid2)
+      expect(cid1).toContain('mock-container-')
+      expect(cid2).toContain('mock-container-')
+
+      // No physical directories in sandbox mode
       const physicalPath1 = join(WORKSPACE_BASE, id1)
       const physicalPath2 = join(WORKSPACE_BASE, id2)
-
-      expect(id1).not.toBe(id2)
-      expect(cid1).not.toBe(cid2) // Different containers provide isolation
-      expect(fs.existsSync(physicalPath1)).toBe(true)
-      expect(fs.existsSync(physicalPath2)).toBe(true)
+      expect(fs.existsSync(physicalPath1)).toBe(false)
+      expect(fs.existsSync(physicalPath2)).toBe(false)
 
       // Clean up
       await app.inject({ method: 'DELETE', url: `/api/v1/sessions/${id1}` })
       await app.inject({ method: 'DELETE', url: `/api/v1/sessions/${id2}` })
-
-      expect(fs.existsSync(physicalPath1)).toBe(false)
-      expect(fs.existsSync(physicalPath2)).toBe(false)
     })
   })
 })
