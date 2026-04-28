@@ -1,50 +1,12 @@
 ## Purpose
 
-Provide JSON-RPC bridge between FastAPI and codenano-cli, supporting agent initialization, message streaming, and session history.
+Agent tool preset configuration for selecting which tools are available to the agent. Tool presets are passed directly to `createAgent()` — no JSON-RPC bridge or external subprocess.
 
-## ADDED Requirements
-
-### Requirement: JSON-RPC init method
-
-The system SHALL support an `init` JSON-RPC method to initialize the agent with configuration (model selection, etc.).
-
-### Requirement: JSON-RPC send method with streaming
-
-The system SHALL support a `send` JSON-RPC method that accepts a prompt and streams back events via stdout notifications. The method SHALL return when the agent finishes processing.
-
-### Requirement: JSON-RPC history method
-
-The system SHALL support a `history` JSON-RPC method that returns the conversation history for a session.
-
-### Requirement: JSON-RPC close method
-
-The system SHALL support a `close` JSON-RPC method to explicitly close a session and clean up resources.
-
-### Requirement: JSON-RPC list_sessions method
-
-The system SHALL support a `list_sessions` JSON-RPC method that returns metadata about all active sessions.
-
-### Requirement: Stream notifications
-
-The codenano-cli SHALL emit JSON-RPC notifications with method `stream` for each event during agent processing (thought, tool_use, result, error).
-
-### Requirement: REST API for session message
-
-The system SHALL provide a `POST /api/v1/sessions/{session_id}/message` endpoint that accepts a prompt and returns an SSE stream of agent events.
-
-### Requirement: REST API for session history
-
-The system SHALL provide a `GET /api/v1/sessions/{session_id}/history` endpoint that returns the conversation history.
-
-## MODIFIED Requirements
+## Requirements
 
 ### Requirement: Session accepts toolPreset parameter
 
-**FROM:**
-> codenano-service SHALL accept an optional `toolPreset` field in the session creation request body. When provided, the value MUST be one of: `"core"`, `"extended"`, `"all"`. When omitted, the default value `"core"` SHALL be used.
-
-**TO:**
-> The agent-service SHALL accept `toolPreset` as part of the AgentConfig in `POST /api/v1/sessions` body. When provided, the value MUST be one of: `"core"`, `"extended"`, `"all"`. When omitted, the default value `"core"` SHALL be used. The value is passed directly to `createAgent({ toolPreset: "..." })` which internally selects the appropriate tools array.
+The agent-service SHALL accept `toolPreset` as part of the AgentConfig in `POST /api/v1/sessions` body. When provided, the value MUST be one of: `"core"`, `"extended"`, `"all"`. When omitted, the default value `"core"` SHALL be used. The value is passed directly to `createAgent({ toolPreset: "..." })` which internally selects the appropriate tools array.
 
 #### Scenario: toolPreset omitted uses core
 - **WHEN** caller creates a session with no `toolPreset` in config
@@ -64,22 +26,8 @@ The system SHALL provide a `GET /api/v1/sessions/{session_id}/history` endpoint 
 
 ### Requirement: Tool preset defaults to core
 
-**FROM:**
-> If codenano-service receives a session creation request without `toolPreset`, it SHALL default to `"core"` when calling codenano-cli's init RPC.
-
-**TO:**
-> If session creation config omits `toolPreset`, the default value `"core"` is used when calling `createAgent`.
+If session creation config omits `toolPreset`, the default value `"core"` is used when calling `createAgent`.
 
 #### Scenario: Default core when not specified
 - **WHEN** session creation config has no `toolPreset`
 - **THEN** the agent is initialized with `coreTools()`
-
-## REMOVED Requirements
-
-### Requirement: Tool preset is passed through init RPC
-
-**Reason**: codenano-cli JSON-RPC layer is removed. `toolPreset` is passed directly to `createAgent()` in the same Node.js process.
-
-#### Migration: Use direct SDK config
-- **FROM**: `codenano-service` → `codenano-cli` via JSON-RPC `init` → `createAgent({ toolPreset })`
-- **TO**: `agent-service` calls `createAgent({ toolPreset })` directly

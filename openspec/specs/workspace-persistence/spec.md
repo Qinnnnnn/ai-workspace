@@ -6,7 +6,7 @@ Provide persistent workspace directories for agent sessions, allowing files to s
 
 ### Requirement: Workspace bound to host path
 
-Each session SHALL have a `/workspace` directory that is bound to a host path (`/tmp/host_sessions/{session_id}/workspace/`). The workspace SHALL be created automatically when the session is created.
+Each session SHALL have a `/workspace` directory that is bound to a host path (`~/.agent-core/workspaces/{session_id}/`). The workspace SHALL be created automatically when the session is created.
 
 ### Requirement: Workspace survives session restarts
 
@@ -29,7 +29,7 @@ The sandbox SHALL start with `/workspace` as the current working directory (`--c
 #### Scenario: Agent creates file in workspace
 
 - **WHEN** agent creates `/workspace/research.md`
-- **THEN** the file is visible on the host at `/tmp/host_sessions/{session_id}/workspace/research.md`
+- **THEN** the file is visible on the host at `~/.agent-core/workspaces/{session_id}/research.md`
 
 #### Scenario: File persists after session restart
 
