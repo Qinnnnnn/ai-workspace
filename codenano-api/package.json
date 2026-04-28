@@ -27,7 +27,7 @@
   "dependencies": {
     "@fastify/cors": "^10.0.0",
     "@fastify/websocket": "^11.0.0",
-    "codenano": "file:../codenano",
+    "codenano": "file:./codenano",
     "dockerode": "^4.0.12",
     "dotenv": "^16.4.0",
     "fastify": "^5.0.0",
