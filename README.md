@@ -1,21 +1,12 @@
-```
- ██████╗ ██████╗ ██╗██╗   ██╗███████╗
- ██╔══██╗██╔══██╗██║██║   ██║██╔════╝
- ██║  ██║██████╔╝██║██║   ██║█████╗
- ██║  ██║██╔══██╗██║╚██╗ ██╔╝██╔══╝
- ██████╔╝██║  ██║██║ ╚████╔╝ ███████╗
- ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═══╝  ╚══════╝
-```
-
-> **生产级 AI 编程 Agent 架构，开源可用。**
+> **受 Claude Code 启发，轻量级 AI 编程 Agent SDK，生产级架构。**
 >
-> 灵感来自业界领先的 AI 编程工具，专注于轻量、模块化、生产就绪。
+> 从 Claude Code 生产架构中提取核心引擎，约 8,000 行专注代码，让每个人都能构建自己的 AI 编程工具。
 
 ---
 
-## 血统
+## 项目灵感
 
-本项目基于 **Claude Code** 的生产级 Agent 架构改造。
+基于 **Claude Code** 的生产级 Agent 架构改造。
 
 Claude Code 是 Anthropic 官方推出的 CLI 工具，为全球开发者提供 AI 编程能力。其核心架构经过海量真实代码库验证，稳定可靠。
 
@@ -28,15 +19,14 @@ Claude Code (Anthropic 官方)
         ▼
     codenano SDK
         │
-        ├── codenano-api (HTTP/WebSocket 服务)
-        └── openspec (变更管理系统)
+        └── codenano-api (HTTP/SSE 服务)
 ```
 
 ---
 
 ## 模块
 
-### [codenano](./codenano/) — AI 编程 Agent SDK
+### [codenano](./codenano/) — Agent SDK
 
 轻量级 AI 编程 Agent SDK，保留 Claude Code 核心架构。
 
@@ -64,11 +54,9 @@ const result = await agent.ask('Read package.json and summarize it')
 
 > 继承自 Claude Code 的生产验证架构，经过真实代码库海量验证。
 
-**[深入文档](./codenano/README.md)**
-
 ---
 
-### [codenano-api](./codenano-api/) — HTTP/WebSocket 服务
+### [codenano-api](./codenano-api/) — HTTP/SSE 服务
 
 Node.js Fastify 服务，封装 codenano SDK 提供 RESTful API。
 
@@ -82,35 +70,27 @@ ANTHROPIC_AUTH_TOKEN=sk-ant-... npm start
 |------|------|
 | `POST /api/v1/sessions` | 创建会话 |
 | `POST /api/v1/sessions/:id/message` | 发送消息 (SSE 流式) |
-| `GET /ws/sessions/:id/hooks` | WebSocket 钩子通道 |
-| `POST /api/v1/memory` | 持久化记忆 |
-| `POST /api/v1/mcp/connect` | 连接 MCP 服务器 |
-
-**[完整 API 文档](./docs/codenano-api.md)**
+| `GET /api/v1/memory` | 列出记忆 |
+| `POST /api/v1/memory` | 保存记忆 |
 
 ---
 
-### [openspec](./openspec/) — 变更管理系统
+### [codenano-webui](./codenano-webui/) — Web UI
 
-结构化变更管理系统，支持 proposal → design → specs → tasks 工作流。
+基于 codenano-api 的 Web 界面，提供可视化会话管理。
 
-```
-openspec/
-├── specs/           # 主规格文档
-│   ├── agent-api/
-│   ├── session-management/
-│   ├── memory-api/
-│   ├── mcp-api/
-│   └── sandbox-isolation/
-└── changes/         # 变更提案
-    └── per-session-workspace-isolation/
-        ├── proposal.md
-        ├── design.md
-        ├── specs/
-        └── tasks.md
+```bash
+cd codenano-webui
+npm install && npm run dev
 ```
 
----
+| 特性 | 描述 |
+|------|------|
+| **会话管理** | 创建、恢复、搜索历史会话 |
+| **流式输出** | 实时展示 Agent 响应 |
+| **记忆管理** | 查看和编辑跨会话记忆 |
+| **停止生成** | 一键中止长时间运行的任务 |
+
 
 ## 快速开始
 
@@ -131,15 +111,16 @@ agent.ask('What is 2+2?').then(r => console.log(r.text))
 ## 技术栈
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                        AI Workspace                      │
-├─────────────────┬──────────────────┬───────────────────┤
-│    codenano     │   codenano-api   │     openspec      │
-│   ───────────   │   ────────────   │    ─────────      │
-│  TypeScript     │  TypeScript      │   Markdown        │
-│  Node.js        │  Fastify         │   JSON Schema     │
-│  Anthropic SDK  │  WebSocket       │   Git-based       │
-└─────────────────┴──────────────────┴───────────────────┘
+┌───────────────────────────────────────────────────────────────────┐
+│                           AI Workspace                             │
+├───────────────┬──────────────────────┬────────────────────────────┤
+│   codenano    │    codenano-api      │       codenano-webui       │
+│  ───────────  │    ────────────      │       ────────────         │
+│  TypeScript   │    TypeScript        │  React + TypeScript        │
+│  Node.js      │    Fastify           │  Vite                      │
+│  Anthropic SDK│    SSE + REST        │  Radix UI                  │
+│  ~8,000 lines │    RESTful + SSE     │  SSE (消费 API 流式响应)   │
+└───────────────┴──────────────────────┴────────────────────────────┘
 ```
 
 ---
@@ -147,58 +128,25 @@ agent.ask('What is 2+2?').then(r => console.log(r.text))
 ## 架构概览
 
 ```
-                        ┌──────────────┐
-                        │   Client     │
-                        └──────┬───────┘
-                               │ HTTP/WS
-                        ┌──────▼───────┐
-                        │ codenano-api │
-                        │   (Fastify)  │
-                        └──────┬───────┘
-                               │ SDK
-                        ┌──────▼───────┐
-                        │   codenano   │
-                        │   (Agent)    │
-                        └──────┬───────┘
-                               │ Tools
-              ┌────────────────┼────────────────┐
-              │                │                │
-        ┌─────▼─────┐   ┌─────▼─────┐   ┌─────▼─────┐
-        │   File    │   │   Bash    │   │   MCP     │
-        │  System   │   │ Command   │   │  Server   │
-        └───────────┘   └───────────┘   └───────────┘
+                        ┌──────────────────┐
+                        │  codenano-webui  │
+                        │   (Web Client)   │
+                        └────────┬─────────┘
+                                 │ HTTP/SSE
+                        ┌────────▼─────────┐
+                        │   codenano-api   │
+                        │     (Fastify)    │
+                        └────────┬─────────┘
+                                 │ SDK
+                        ┌────────▼─────────┐
+                        │    codenano      │
+                        │     (Agent)     │
+                        └────────┬─────────┘
+                                 │ Tools
+              ┌──────────────────┼──────────────────┐
+              │                  │                  │
+        ┌─────▼─────┐     ┌─────▼─────┐     ┌─────▼─────┐
+        │   File    │     │   Bash    │     │   MCP     │
+        │  System   │     │ Command   │     │  Server   │
+        └───────────┘     └───────────┘     └───────────┘
 ```
-
----
-
-## 与 Claude Code 的关系
-
-| 特性 | Claude Code | codenano |
-|------|-------------|----------|
-| Agent 循环 | `while(true) → model → tool_use → execute → repeat` | ✅ 相同模式 |
-| 核心工具集 | Read/Edit/Write/Bash/Grep/Glob | ✅ 相同 |
-| 流式执行 | ✅ | ✅ |
-| 会话持久化 | ✅ | ✅ |
-| 记忆系统 | ✅ | ✅ |
-| MCP 协议 | ✅ | ✅ |
-| CLI/TUI | ✅ 终端 UI | ❌ 纯 SDK |
-| 权限系统 | 6 种模式 + 规则层 | 简化版钩子 |
-
-codenano 保留了 Claude Code 的**核心引擎**，去除了终端 UI 绑定，适合构建：
-
-- AI 编程 API 服务
-- 自定义 AI 编码助手
-- CI/CD 集成工具
-- 代码审查/分析服务
-
----
-
-<p align="center">
-
-![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue.svg)
-![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)
-![MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
-
-**Powered by Claude Code Architecture**
-
-</p>
