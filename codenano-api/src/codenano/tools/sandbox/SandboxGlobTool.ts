@@ -1,37 +1,12 @@
 /**
  * SandboxGlobTool — Fast file pattern matching inside Docker container.
- * Uses `docker exec` to run `find` inside the container's /workspace.
- * Implementation mirrors core GlobTool.
+ * Uses `docker exec` via executeCoreCommand to run `find` inside the container.
  */
 
 import { z } from 'zod'
-import { spawnSync } from 'child_process'
 import { defineTool } from '../../tool-builder.js'
+import { executeCoreCommand } from '../../utils/sandbox-exec.js'
 import type { ToolContext } from '../../types.js'
-
-function executeGlobInSandbox(pattern: string, containerId: string, searchDir: string) {
-  // Use find with globbing — mirrors core GlobTool behavior
-  const dockerCmd = `docker exec ${containerId} bash -c "cd ${searchDir} && find . -name '${pattern}' -type f 2>/dev/null | head -1000"`
-  try {
-    const result = spawnSync('bash', ['-c', dockerCmd], {
-      encoding: 'utf-8',
-      timeout: 30_000,
-      stdio: ['pipe', 'pipe', 'pipe'],
-    })
-    const stdout = result.stdout ?? ''
-    const stderr = result.stderr ?? ''
-    if (result.status !== 0 && stderr) {
-      return { content: `Error: Failed to search for pattern "${pattern}" in ${searchDir}`, isError: true }
-    }
-    const files = stdout.trim().split('\n').filter(Boolean)
-    if (files.length === 0) {
-      return `No files matched pattern "${pattern}" in ${searchDir}`
-    }
-    return files.join('\n')
-  } catch {
-    return { content: `Error: Failed to search for pattern "${pattern}" in ${searchDir}`, isError: true }
-  }
-}
 
 const inputSchema = z.object({
   pattern: z.string().describe('The glob pattern to match files against'),
@@ -57,9 +32,24 @@ export const SandboxGlobTool = defineTool({
     if (context.runtime?.type !== 'sandbox') {
       return { content: 'Sandbox mode required. Expected runtime.type === "sandbox"', isError: true }
     }
+
     const { containerId, cwd } = context.runtime
-    // Mirrors core GlobTool: use input.path or context.cwd
     const searchDir = input.path ?? cwd
-    return executeGlobInSandbox(input.pattern, containerId, searchDir)
+    const escapedPattern = input.pattern.replace(/'/g, "'\\''")
+    const cmd = `find '${searchDir}' -name '${escapedPattern}' -type f 2>/dev/null | head -1000`
+
+    const result = executeCoreCommand(containerId, cmd)
+
+    if (result.status !== 0) {
+      return { content: `Error: Failed to search for pattern "${input.pattern}" in ${searchDir}`, isError: true }
+    }
+
+    const stdout = result.stdout ?? ''
+    const files = stdout.trim().split('\n').filter(Boolean)
+
+    if (files.length === 0) {
+      return `No files matched pattern "${input.pattern}" in ${searchDir}`
+    }
+    return files.join('\n')
   },
 })

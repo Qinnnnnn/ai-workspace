@@ -16,7 +16,7 @@ import type { ZodType } from 'zod'
  */
 export type RuntimeContext =
   | { type: 'local'; cwd: string }
-  | { type: 'sandbox'; cwd: string; hostWorkspaceDir: string; containerId: string }
+  | { type: 'sandbox'; cwd: string; containerId: string }
 
 // ─── Agent Configuration ────────────────────────────────────────────────────
 

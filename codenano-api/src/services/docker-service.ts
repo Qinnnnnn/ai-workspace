@@ -1,24 +1,29 @@
 import Docker from 'dockerode'
-import { execSync } from 'child_process'
-import os from 'os'
+import fs from 'fs'
 
 const DOCKER_IMAGE = process.env.SANDBOX_DOCKER_IMAGE ?? 'codenano-sandbox:latest'
 const CONTAINER_CPU_LIMIT = parseFloat(process.env.SANDBOX_CPU_LIMIT ?? '0.5')
-const CONTAINER_MEMORY_LIMIT = process.env.SANDBOX_MEMORY_LIMIT ?? '512m'
+const SANDBOX_MODE = process.env.SANDBOX_MODE ?? 'local'
 
 function getDocker(): Docker {
-  const socketPath = process.env.DOCKER_HOST
-    ? undefined
-    : '/var/run/docker.sock'
-  return new Docker({ socketPath })
-}
-
-function getHostUid(): number {
-  try {
-    return os.userInfo().uid
-  } catch {
-    return 1000
+  if (SANDBOX_MODE === 'remote') {
+    const host = process.env.DOCKER_HOST_HOST
+    const user = process.env.DOCKER_HOST_USER
+    const keyPath = process.env.DOCKER_HOST_KEY_PATH
+    if (!host || !user || !keyPath) {
+      throw new Error('SANDBOX_MODE=remote requires DOCKER_HOST_HOST, DOCKER_HOST_USER, and DOCKER_HOST_KEY_PATH')
+    }
+    return new Docker({
+      ssh: {
+        host,
+        port: 22,
+        username: user,
+        privateKey: fs.readFileSync(keyPath, 'utf-8'),
+      },
+    } as any)
   }
+  // local mode: use default socket
+  return new Docker()
 }
 
 export async function checkDockerHealth(): Promise<boolean> {
@@ -49,11 +54,9 @@ export async function pullImage(image: string): Promise<void> {
 
 export async function createContainer(
   sessionId: string,
-  physicalPath: string,
 ): Promise<string> {
   const docker = getDocker()
   const containerName = `codenano-sandbox-${sessionId}`
-  const hostUid = getHostUid()
 
   // Ensure image exists, pull if needed
   try {
@@ -62,26 +65,28 @@ export async function createContainer(
     await pullImage(DOCKER_IMAGE)
   }
 
-  const container = await docker.createContainer({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const containerInfo = await docker.createContainer({
     name: containerName,
     Image: DOCKER_IMAGE,
     Cmd: ['tail', '-f', '/dev/null'],
     WorkingDir: '/workspace',
-    User: String(hostUid),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     HostConfig: {
-      Binds: [`${physicalPath}:/workspace`],
-      Memory: parseInt(CONTAINER_MEMORY_LIMIT, 10) * 1024 * 1024,
+      Mounts: [{
+        Type: 'tmpfs',
+        Target: '/workspace',
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        TmpfsOptions: { SizeBytes: 512 * 1024 * 1024, Mode: 0o777 } as any,
+      }],
       NanoCpus: Math.floor(CONTAINER_CPU_LIMIT * 1e9),
       CapDrop: ['ALL'],
       Privileged: false,
-      ReadonlyRootfs: false,
     },
-    Env: [
-      `HOST_UID=${hostUid}`,
-    ],
-  })
+    Volumes: { '/workspace': {} },
+  } as any)
 
-  return container.id
+  return (containerInfo as any).id
 }
 
 export async function startContainer(containerId: string): Promise<void> {

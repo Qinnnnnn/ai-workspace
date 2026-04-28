@@ -16,6 +16,7 @@ export interface SessionEntry {
   lastActivity: Date
   toolPermissions: Record<string, ToolPermission>
   cwd: string
+  isSandbox: boolean
   containerId: string | null
 }
 
@@ -50,6 +51,7 @@ export class SessionRegistry {
   register(sessionId: string, agent: Agent, session: Session, options: {
     toolPermissions?: Record<string, ToolPermission>
     cwd: string
+    isSandbox: boolean
     containerId: string | null
   }): void {
     const entry: SessionEntry = {
@@ -60,6 +62,7 @@ export class SessionRegistry {
       lastActivity: new Date(),
       toolPermissions: options.toolPermissions ?? {},
       cwd: options.cwd,
+      isSandbox: options.isSandbox,
       containerId: options.containerId,
     }
 
@@ -120,11 +123,13 @@ export class SessionRegistry {
       // Ignore cleanup errors
     }
 
-    // Delete workspace directory
-    try {
-      fs.rmSync(entry.cwd, { recursive: true, force: true })
-    } catch {
-      // Ignore cleanup errors
+    // Delete workspace directory (local mode only; sandbox mode has no host directory)
+    if (!entry.isSandbox) {
+      try {
+        fs.rmSync(entry.cwd, { recursive: true, force: true })
+      } catch {
+        // Ignore cleanup errors
+      }
     }
 
     this.sessions.delete(sessionId)

@@ -34,10 +34,6 @@ export async function sessionsRoutes(fastify: FastifyInstance): Promise<void> {
 
     // Create session ID and workspace
     const sessionId = resumeSessionId ?? crypto.randomUUID()
-    const physicalPath = join(WORKSPACE_BASE, sessionId)
-
-    // Create workspace directory
-    mkdirSync(physicalPath, { recursive: true })
 
     // Determine runtime mode
     const isSandbox = config.sandbox !== false
@@ -47,13 +43,11 @@ export async function sessionsRoutes(fastify: FastifyInstance): Promise<void> {
 
     if (isSandbox) {
       // Create and start Docker container (sandbox mode)
-      // Docker is required - fail fast if unavailable
+      // tmpfs /workspace is managed inside container — no host directory needed
       try {
-        containerId = await createContainer(sessionId, physicalPath)
+        containerId = await createContainer(sessionId)
         await startContainer(containerId)
       } catch (err) {
-        // Clean up workspace directory on failure
-        try { rmSync(physicalPath, { recursive: true, force: true }) } catch { /* ignore */ }
         const message = err instanceof Error ? err.message : String(err)
         return reply.status(503).send({
           error: 'Docker unavailable',
@@ -65,11 +59,12 @@ export async function sessionsRoutes(fastify: FastifyInstance): Promise<void> {
       runtime = {
         type: 'sandbox',
         cwd: '/workspace',
-        hostWorkspaceDir: physicalPath,
         containerId,
       }
     } else {
       // Local mode - no Docker, use local filesystem
+      const physicalPath = join(WORKSPACE_BASE, sessionId)
+      mkdirSync(physicalPath, { recursive: true })
       runtime = {
         type: 'local',
         cwd: physicalPath,
@@ -106,13 +101,14 @@ export async function sessionsRoutes(fastify: FastifyInstance): Promise<void> {
     // Register in registry
     registry.register(sessionId, agent, session, {
       toolPermissions: toolPermissions as Record<string, ToolPermission>,
-      cwd: physicalPath,
+      cwd: runtime.cwd,
+      isSandbox,
       containerId,
     })
 
     return reply.send({
       sessionId,
-      cwd: isSandbox ? '/workspace' : physicalPath,
+      cwd: runtime.cwd,
       sandboxEnabled: isSandbox,
       containerId: containerId ?? undefined,
     })
