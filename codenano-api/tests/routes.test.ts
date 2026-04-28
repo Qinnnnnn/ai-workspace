@@ -285,13 +285,13 @@ describe('API Routes', () => {
       expect(body.branch).toBeDefined()
     })
 
-    it('GET /api/v1/git/state - handles path query', async () => {
+    it('GET /api/v1/git/state - returns 404 for non-git path', async () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/v1/git/state?path=/test/path',
       })
 
-      expect(response.statusCode).toBe(200)
+      expect(response.statusCode).toBe(404)
     })
   })
 
