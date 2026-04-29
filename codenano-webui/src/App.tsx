@@ -73,7 +73,7 @@ export default function App() {
             const content = Array.isArray(last.content) ? last.content : [{ type: 'text' as const, text: last.content }]
             const lastBlock = content[content.length - 1]
             if (lastBlock && lastBlock.type === 'text') {
-              lastBlock.text += char
+              content[content.length - 1] = { ...lastBlock, text: lastBlock.text + char }
             } else {
               content.push({ type: 'text', text: char })
             }
@@ -95,6 +95,22 @@ export default function App() {
       onText: (text: string) => {
         thinkingActiveRef.current = false
         if (!streamSessionRef.current) return
+
+        setSessionMessages((prev) => {
+          const msgs = prev[streamSessionRef.current!] ?? []
+          const last = msgs[msgs.length - 1]
+          if (!last || last.role !== 'assistant' || !last.isStreaming) {
+            return {
+              ...prev,
+              [streamSessionRef.current!]: [
+                ...msgs,
+                { id: uuid(), role: 'assistant', content: [{ type: 'text', text: '' }], isStreaming: true, createdAt: Date.now() },
+              ],
+            }
+          }
+          return prev
+        })
+
         pendingTextRef.current += text
         if (!drainingRef.current) {
           drainPendingText()
@@ -110,7 +126,8 @@ export default function App() {
             if (thinkingActiveRef.current) {
               const lastThinkingIdx = content.findLastIndex((b: ContentBlock) => b.type === 'thinking')
               if (lastThinkingIdx !== -1) {
-                (content[lastThinkingIdx] as Extract<ContentBlock, { type: 'thinking' }>).thinking += thinking
+                const existingThinking = content[lastThinkingIdx] as Extract<ContentBlock, { type: 'thinking' }>
+                content[lastThinkingIdx] = { ...existingThinking, thinking: existingThinking.thinking + thinking }
               } else {
                 content.push({ type: 'thinking', thinking })
               }
@@ -201,7 +218,7 @@ export default function App() {
             const content = Array.isArray(last.content) ? last.content : [{ type: 'text' as const, text: last.content }]
             const lastBlock = content[content.length - 1]
             if (lastBlock && lastBlock.type === 'text' && remaining) {
-              lastBlock.text += remaining
+              content[content.length - 1] = { ...lastBlock, text: lastBlock.text + remaining }
             }
             return { ...prev, [sessionId]: [...msgs.slice(0, -1), { ...last, content, isStreaming: false }] }
           }
@@ -225,7 +242,7 @@ export default function App() {
               const content = Array.isArray(last.content) ? last.content : [{ type: 'text' as const, text: last.content }]
               const lastBlock = content[content.length - 1]
               if (lastBlock && lastBlock.type === 'text') {
-                lastBlock.text += remaining
+                content[content.length - 1] = { ...lastBlock, text: lastBlock.text + remaining }
               } else {
                 content.push({ type: 'text', text: remaining })
               }
@@ -263,7 +280,7 @@ export default function App() {
             const lastContent = Array.isArray(last.content) ? last.content : [{ type: 'text' as const, text: String(last.content) }]
             const lastBlock = lastContent[lastContent.length - 1]
             if (lastBlock && lastBlock.type === 'text' && remaining) {
-              lastBlock.text += remaining
+              lastContent[lastContent.length - 1] = { ...lastBlock, text: lastBlock.text + remaining }
             }
             return {
               ...prev,
