@@ -1,36 +1,39 @@
 FROM ubuntu:24.04
 
-# 设置环境变量：统一管理，减少冗余
+# 环境变量统一管理
 ENV UV_INSTALL_DIR="/usr/local/bin" \
     UV_PYTHON_INSTALL_MIRROR="http://uv.tool.huawei.com/repository/python-build-standalone/releases/download" \
     DEBIAN_FRONTEND=noninteractive
 
-# 1. 合并所有系统初始化操作 (减少 Layer 层数)
+# 合并系统初始化、安装工具和 uv
 RUN sed -i "s@http://.*.ubuntu.com@http://mirrors.tools.huawei.com@g" /etc/apt/sources.list.d/ubuntu.sources && \
-    apt-get update && apt-get install -y --no-install-recommends \
-    curl git jq ca-certificates ripgrep sudo && \
-    # 安装 uv 并立即清理缓存
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
+        curl git jq ca-certificates ripgrep sudo && \
     curl -LsSf http://uv.tool.huawei.com/install.sh | sh && \
     apt-get autoremove -y && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-# 2. 简化用户创建 (沙箱环境通常固定 UID 即可)
+# 创建用户前先解决可能的 UID 冲突（基础镜像理论上没有 1000，但若构建缓存残留则删除）
 ARG HOST_UID=1000
-RUN useradd -m -d /home/agent -s /bin/bash -u ${HOST_UID} agent && \
+RUN if getent passwd ${HOST_UID} > /dev/null 2>&1; then \
+        userdel -r "$(getent passwd ${HOST_UID} | cut -d: -f1)"; \
+    fi && \
+    useradd -m -d /home/agent -s /bin/bash -u ${HOST_UID} agent && \
     echo "agent ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
+# 切换到普通用户
 USER agent
 WORKDIR /workspace
 
-# 3. 预配置 uv (使用一行写入减少 IO)
+# 配置 uv (一行写入配置文件)
 RUN mkdir -p /home/agent/.config/uv && \
     printf 'python-install-mirror = "%s"\nindex-url = "https://mirrors.tools.huawei.com/pypi/simple"\nallow-insecure-host = ["mirrors.tools.huawei.com"]\n' \
-    "$UV_PYTHON_INSTALL_MIRROR" > /home/agent/.config/uv/uv.toml
+    "${UV_PYTHON_INSTALL_MIRROR}" > /home/agent/.config/uv/uv.toml
 
-# 4. (可选) 预装一个轻量级 Python 版本
-# 既然是沙箱，Agent 运行需要 Python，用 uv 提前装好可以避免首次运行时的下载耗时
+# 预装 Python 3.12（提前安装避免首次运行时下载）
 RUN uv python install 3.12 --managed-python
 
-# 5. 挂起容器
+# 保持容器运行
 CMD ["tail", "-f", "/dev/null"]
